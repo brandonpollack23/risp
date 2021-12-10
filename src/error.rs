@@ -1,5 +1,6 @@
 use crate::tokenizer::RispToken;
 use std::num::{ParseFloatError, ParseIntError};
+use std::str::ParseBoolError;
 use thiserror::Error;
 
 pub type RispResult<T> = Result<T, RispError>;
@@ -16,8 +17,10 @@ pub enum RispError {
 
     #[error("Error parsing integer: {0}")]
     ParseIntError(#[from] ParseIntError),
-    #[error("Error parsing integer: {0}")]
+    #[error("Error parsing float: {0}")]
     ParseFloatError(#[from] ParseFloatError),
+    #[error("Error parsing bool: {0}")]
+    ParseBoolError(#[from] ParseBoolError),
 
     #[error("The previous LParen was unterminated")]
     UnterminatedList,

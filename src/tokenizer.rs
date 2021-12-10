@@ -7,6 +7,7 @@ pub fn tokenize(line: &str) -> RispResult<Vec<RispToken>> {
 }
 
 pub struct Tokenizer {
+    bool_matcher: Regex,
     int_matcher: Regex,
     float_matcher: Regex,
     symbol_matcher: Regex,
@@ -16,6 +17,7 @@ pub struct Tokenizer {
 impl Tokenizer {
     pub fn new() -> Tokenizer {
         Tokenizer {
+            bool_matcher: Regex::new(r#"^(true|false)$"#).unwrap(),
             int_matcher: Regex::new(r#"^[-+]?[0-9][0-9_]*$"#).unwrap(),
             float_matcher: Regex::new(r#"^[-+]?[0-9]*([.][0-9]+|f|[.][0-9]+f)$"#).unwrap(),
             symbol_matcher: Regex::new(r#"^([A-Za-z_]+[A-Za-z0-9_]*|\+|-|\*|/)$"#).unwrap(),
@@ -37,6 +39,7 @@ impl Tokenizer {
 
     fn tokenize_element(&self, elem: &str) -> RispResult<RispToken> {
         match elem {
+            b if self.bool_matcher.is_match(b) => Ok(RispToken::Bool(bool::from_str(b)?)),
             int if self.int_matcher.is_match(int) => {
                 Ok(RispToken::Integer(i32::from_str(&int.replace("_", ""))?))
             }
@@ -55,6 +58,7 @@ pub enum RispToken {
     LParen,
     RParen,
     Symbol(String),
+    Bool(bool),
     Float(f64),
     Integer(i32),
     // TODO char and string
@@ -137,6 +141,12 @@ mod tests {
             tokenize(&format!("-11{}f", f64::MAX.to_string())).unwrap(),
             vec![RispToken::Float(f64::NEG_INFINITY)]
         );
+    }
+
+    #[test]
+    fn recognizes_bools() {
+        assert_eq!(tokenize("true").unwrap(), vec![RispToken::Bool(true)]);
+        assert_eq!(tokenize("false").unwrap(), vec![RispToken::Bool(false)]);
     }
 
     #[test]

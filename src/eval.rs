@@ -23,3 +23,15 @@ fn eval_func(forms: &[RispExp], env: &mut RispEnv) -> RispResult<RispExp> {
         _ => panic!("NOT IMPLEMENTED YET!"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    // TODO NOW plus
+    // TODO NOW minus
+    // TODO NOW mul
+    // TODO NOW div
+    // TODO NOW and
+    // TODO NOW or
+    // TODO NOW not
+    // TODO NOW xor
+}

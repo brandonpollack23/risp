@@ -19,8 +19,9 @@ fn parse_internal<'a>(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken]
 
 fn parse_atom(token: &RispToken) -> RispResult<RispExp> {
     match token {
-        RispToken::Integer(x) => Ok(RispExp::Integer(*x)),
-        RispToken::Float(x) => Ok(RispExp::Float(*x)),
+        RispToken::Bool(b) => Ok(RispExp::Bool(*b)),
+        RispToken::Integer(i) => Ok(RispExp::Integer(*i)),
+        RispToken::Float(f) => Ok(RispExp::Float(*f)),
         RispToken::Symbol(str) => parse_symbol(str),
         other => Err(RispError::UnexpectedToken(other.clone())),
     }
@@ -51,6 +52,7 @@ fn read_seq(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
 #[derive(Clone, Debug, PartialEq)]
 pub enum RispExp {
     Symbol(String),
+    Bool(bool),
     Integer(i32),
     Float(f64),
     List(Vec<RispExp>),
@@ -271,5 +273,5 @@ mod tests {
         );
     }
 
-    // TODO non lists (ints, floats, etc)
+    // TODO non lists (ints, floats, bools, symbols etc)
 }
