@@ -4,7 +4,7 @@ use thiserror::Error;
 
 pub type RispResult<T> = Result<T, RispError>;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum RispError {
     #[error("The input {0} is not recognized as any valid token")]
     UnrecognizedToken(String),
@@ -14,16 +14,10 @@ pub enum RispError {
     #[error("Attempting to add non float/int with addition builtin")]
     AdditionError,
 
-    #[error("Error parsing integer: {source}")]
-    ParseIntError {
-        #[from]
-        source: ParseIntError,
-    },
-    #[error("Error parsing integer: {source}")]
-    ParseFloatError {
-        #[from]
-        source: ParseFloatError,
-    },
+    #[error("Error parsing integer: {0}")]
+    ParseIntError(#[from] ParseIntError),
+    #[error("Error parsing integer: {0}")]
+    ParseFloatError(#[from] ParseFloatError),
 
     #[error("The previous LParen was unterminated")]
     UnterminatedList,

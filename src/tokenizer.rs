@@ -12,6 +12,7 @@ pub struct Tokenizer {
     symbol_matcher: Regex,
 }
 
+// TODO AFTER symbols should always attempt to be evaluated unless quoted, so differentiate
 impl Tokenizer {
     pub fn new() -> Tokenizer {
         Tokenizer {
@@ -58,4 +59,105 @@ pub enum RispToken {
     Integer(i32),
     // TODO char and string
     // TODO nil
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::error::RispError;
+    use pretty_assertions::assert_eq;
+
+    use crate::tokenizer::{tokenize, RispToken};
+
+    #[test]
+    fn recognizes_operators_as_symbols() {
+        operator_assertion("+");
+        operator_assertion("-");
+        operator_assertion("*");
+        operator_assertion("/");
+    }
+
+    fn operator_assertion(op: &str) {
+        assert_eq!(
+            tokenize(op).unwrap(),
+            vec![RispToken::Symbol(op.to_string())]
+        );
+    }
+
+    #[test]
+    fn recognizes_strings_as_symbols() {
+        assert_eq!(
+            tokenize("engage").unwrap(),
+            vec![RispToken::Symbol("engage".to_string())]
+        )
+    }
+
+    #[test]
+    fn empty_string_is_nothing() {
+        assert_eq!(tokenize("").unwrap(), vec![])
+    }
+
+    #[test]
+    fn integer_works() {
+        assert_eq!(tokenize("123").unwrap(), vec![RispToken::Integer(123)])
+    }
+
+    #[test]
+    fn neg_integer_works() {
+        assert_eq!(tokenize("-123").unwrap(), vec![RispToken::Integer(-123)])
+    }
+
+    #[test]
+    fn float_works() {
+        assert_eq!(tokenize("123.0").unwrap(), vec![RispToken::Float(123f64)]);
+        assert_eq!(tokenize("123f").unwrap(), vec![RispToken::Float(123f64)]);
+        assert_eq!(tokenize("123.0f").unwrap(), vec![RispToken::Float(123f64)]);
+        assert_eq!(
+            tokenize("-123.0f").unwrap(),
+            vec![RispToken::Float(-123f64)]
+        );
+    }
+
+    #[test]
+    fn overflow_int_works() {
+        let err = tokenize(&i64::MAX.to_string());
+        assert!(err.is_err());
+        assert!(matches!(
+            err.unwrap_err(),
+            RispError::ParseIntError(std::num::ParseIntError { .. })
+        ))
+    }
+
+    #[test]
+    fn overflow_float_works() {
+        assert_eq!(
+            tokenize(&format!("11{}f", f64::MAX.to_string())).unwrap(),
+            vec![RispToken::Float(f64::INFINITY)]
+        );
+        assert_eq!(
+            tokenize(&format!("-11{}f", f64::MAX.to_string())).unwrap(),
+            vec![RispToken::Float(f64::NEG_INFINITY)]
+        );
+    }
+
+    #[test]
+    fn recognizes_empty_list() {
+        assert_eq!(
+            tokenize("()").unwrap(),
+            vec![RispToken::LParen, RispToken::RParen]
+        );
+    }
+
+    #[test]
+    fn recognizes_list() {
+        assert_eq!(
+            tokenize("(1 2 3)").unwrap(),
+            vec![
+                RispToken::LParen,
+                RispToken::Integer(1),
+                RispToken::Integer(2),
+                RispToken::Integer(3),
+                RispToken::RParen
+            ]
+        );
+    }
 }

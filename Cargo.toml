@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 regex = "1.5.4"
 thiserror = "1.0.30"
+
+[dev-dependencies]
+pretty_assertions = "1.0.0"
