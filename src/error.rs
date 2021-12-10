@@ -1,4 +1,5 @@
 use crate::parser::RispToken;
+use std::num::{ParseFloatError, ParseIntError};
 use thiserror::Error;
 
 pub type RispResult<T> = Result<T, RispError>;
@@ -9,7 +10,19 @@ pub enum RispError {
     UnrecognizedToken(String),
     #[error("The token {0:?} was not expected here")]
     UnexpectedToken(RispToken),
-    #[error("The previous semicolon was unterminated")]
+
+    #[error("Error parsing integer: {source}")]
+    ParseIntError {
+        #[from]
+        source: ParseIntError,
+    },
+    #[error("Error parsing integer: {source}")]
+    ParseFloatError {
+        #[from]
+        source: ParseFloatError,
+    },
+
+    #[error("The previous LParen was unterminated")]
     UnterminatedList,
     #[error("The error failed due to {0}")]
     Reason(String),

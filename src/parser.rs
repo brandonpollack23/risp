@@ -24,7 +24,8 @@ fn parse_internal<'a>(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken]
 
 fn parse_atom(token: &RispToken) -> RispResult<RispExp> {
     match token {
-        RispToken::Number(x) => Ok(RispExp::Number(*x)),
+        RispToken::Integer(x) => Ok(RispExp::Integer(*x)),
+        RispToken::Float(x) => Ok(RispExp::Float(*x)),
         RispToken::Symbol(str) => Ok(RispExp::Symbol(str.clone())),
         other => Err(RispError::UnexpectedToken(other.clone())),
     }
@@ -46,14 +47,16 @@ fn read_seq(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
 }
 
 struct Tokenizer {
-    number_matcher: Regex,
+    int_matcher: Regex,
+    float_matcher: Regex,
     symbol_matcher: Regex,
 }
 
 impl Tokenizer {
     pub fn new() -> Tokenizer {
         Tokenizer {
-            number_matcher: Regex::new(r#"[0-9]+\.?[0-9]*"#).unwrap(),
+            int_matcher: Regex::new(r#"[0-9]+[_0-9]*[0-9]"#).unwrap(),
+            float_matcher: Regex::new(r#"[0-9]+\.?[0-9]*f?"#).unwrap(),
             symbol_matcher: Regex::new(r#"[A-Za-z_]+[A-Za-z0-9_]*"#).unwrap(),
         }
     }
@@ -73,8 +76,11 @@ impl Tokenizer {
 
     fn tokenize_element(&self, elem: &str) -> RispResult<RispToken> {
         match elem {
-            num if self.number_matcher.is_match(num) => Ok(RispToken::Number(
-                f64::from_str(num).expect(&format!("Unable to parse {} as f64", num)),
+            int if self.int_matcher.is_match(int) => {
+                Ok(RispToken::Integer(i64::from_str(&int.replace("_", ""))?))
+            }
+            float if self.float_matcher.is_match(float) => Ok(RispToken::Float(
+                f64::from_str(float).expect(&format!("Unable to parse {} as f64", float)),
             )),
             sym if self.symbol_matcher.is_match(sym) => Ok(RispToken::Symbol(sym.to_string())),
             other => Err(RispError::UnrecognizedToken(other.to_string())),
@@ -87,14 +93,15 @@ pub enum RispToken {
     LParen,
     RParen,
     Symbol(String),
-
-    // TODO more than just floats
-    Number(f64),
+    Float(f64),
+    Integer(i64),
+    // TODO char and string
 }
 
 #[derive(Clone, Debug)]
 pub enum RispExp {
     Symbol(String),
-    Number(f64),
+    Integer(i64),
+    Float(f64),
     List(Vec<RispExp>),
 }
