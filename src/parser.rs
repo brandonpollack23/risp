@@ -48,7 +48,7 @@ fn read_seq(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RispExp {
     Symbol(String),
     Integer(i32),
@@ -78,6 +78,12 @@ impl RispFunction {
             "+" | "-" | "*" | "/" | "xor" | "or" | "and" => true,
             _ => false,
         }
+    }
+}
+
+impl PartialEq for RispFunction {
+    fn eq(&self, other: &Self) -> bool {
+        matches!(self, other)
     }
 }
 
@@ -111,4 +117,131 @@ impl Debug for RispFunction {
 
         f.write_str(&out)
     }
+}
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use crate::parser::RispExp;
+    use crate::parser::{parse, RispFunction};
+    use crate::tokenizer::RispToken;
+
+    #[test]
+    fn empty_list() {
+        assert_eq!(
+            parse(&[RispToken::LParen, RispToken::RParen]).unwrap(),
+            RispExp::List(vec![])
+        );
+    }
+
+    #[test]
+    fn builtins() {
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::Symbol("+".to_string()),
+                RispToken::Integer(1),
+                RispToken::Integer(2),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::Plus),
+                RispExp::Integer(1),
+                RispExp::Integer(2)
+            ])
+        );
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::Symbol("-".to_string()),
+                RispToken::Integer(1),
+                RispToken::Integer(2),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::Minus),
+                RispExp::Integer(1),
+                RispExp::Integer(2)
+            ])
+        );
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::Symbol("*".to_string()),
+                RispToken::Integer(1),
+                RispToken::Integer(2),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::Multiply),
+                RispExp::Integer(1),
+                RispExp::Integer(2)
+            ])
+        );
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::Symbol("/".to_string()),
+                RispToken::Integer(1),
+                RispToken::Integer(2),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::Divide),
+                RispExp::Integer(1),
+                RispExp::Integer(2)
+            ])
+        );
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::Symbol("xor".to_string()),
+                RispToken::Integer(1),
+                RispToken::Integer(2),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::Xor),
+                RispExp::Integer(1),
+                RispExp::Integer(2)
+            ])
+        );
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::Symbol("or".to_string()),
+                RispToken::Integer(1),
+                RispToken::Integer(2),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::Or),
+                RispExp::Integer(1),
+                RispExp::Integer(2)
+            ])
+        );
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::Symbol("and".to_string()),
+                RispToken::Integer(1),
+                RispToken::Integer(2),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::And),
+                RispExp::Integer(1),
+                RispExp::Integer(2)
+            ])
+        );
+    }
+
+    // TODO non lists (ints, floats, etc)
 }

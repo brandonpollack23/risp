@@ -1,10 +1,11 @@
 use crate::environment::RispEnv;
-use crate::error::{RispResult};
+use crate::error::RispResult;
 use crate::parser::{RispExp, RispFunction};
 
-// TODO AFTER TESTS fully implement
 // TODO "define" symbols into env
 // TODO lambdas/function definitions
+
+// TODO NOW fully implement
 pub fn eval(exp: &RispExp, env: &mut RispEnv) -> RispResult<RispExp> {
     match exp {
         RispExp::List(forms) => eval_func(forms, env),

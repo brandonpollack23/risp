@@ -63,9 +63,9 @@ pub enum RispToken {
 
 #[cfg(test)]
 mod tests {
-    use crate::error::RispError;
     use pretty_assertions::assert_eq;
 
+    use crate::error::RispError;
     use crate::tokenizer::{tokenize, RispToken};
 
     #[test]
