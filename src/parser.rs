@@ -61,6 +61,11 @@ pub enum RispExp {
 #[derive(Clone)]
 pub enum RispFunction {
     Function(fn(&[RispExp]) -> RispResult<RispExp>),
+    Builtin(RispBuiltinFunction),
+}
+
+#[derive(Clone, PartialEq)]
+pub enum RispBuiltinFunction {
     Plus,
     Minus,
     Multiply,
@@ -83,20 +88,24 @@ impl RispFunction {
 
 impl PartialEq for RispFunction {
     fn eq(&self, other: &Self) -> bool {
-        matches!(self, other)
+        match (self, other) {
+            (RispFunction::Function(_), RispFunction::Function(_)) => true,
+            (RispFunction::Builtin(s), RispFunction::Builtin(o)) => s == o,
+            _ => false,
+        }
     }
 }
 
 impl From<&str> for RispFunction {
     fn from(str: &str) -> Self {
         match str {
-            "+" => RispFunction::Plus,
-            "-" => RispFunction::Minus,
-            "*" => RispFunction::Multiply,
-            "/" => RispFunction::Divide,
-            "xor" => RispFunction::Xor,
-            "or" => RispFunction::Or,
-            "and" => RispFunction::And,
+            "+" => RispFunction::Builtin(RispBuiltinFunction::Plus),
+            "-" => RispFunction::Builtin(RispBuiltinFunction::Minus),
+            "*" => RispFunction::Builtin(RispBuiltinFunction::Multiply),
+            "/" => RispFunction::Builtin(RispBuiltinFunction::Divide),
+            "xor" => RispFunction::Builtin(RispBuiltinFunction::Xor),
+            "or" => RispFunction::Builtin(RispBuiltinFunction::Or),
+            "and" => RispFunction::Builtin(RispBuiltinFunction::And),
             _ => panic!("This is not a valid built in!"),
         }
     }
@@ -106,13 +115,13 @@ impl Debug for RispFunction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let out = match self {
             RispFunction::Function(f) => format!("#f@{:?}", addr_of!(f)),
-            RispFunction::Plus => "+".to_string(),
-            RispFunction::Minus => "-".to_string(),
-            RispFunction::Multiply => "*".to_string(),
-            RispFunction::Divide => "/".to_string(),
-            RispFunction::Xor => "xor".to_string(),
-            RispFunction::Or => "or".to_string(),
-            RispFunction::And => "and".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Plus) => "+".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Minus) => "-".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Multiply) => "*".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Divide) => "/".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Xor) => "xor".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Or) => "or".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::And) => "and".to_string(),
         };
 
         f.write_str(&out)
@@ -120,10 +129,10 @@ impl Debug for RispFunction {
 }
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
+    use pretty_assertions::{assert_eq, assert_ne};
 
-    use crate::parser::RispExp;
     use crate::parser::{parse, RispFunction};
+    use crate::parser::{RispBuiltinFunction, RispExp};
     use crate::tokenizer::RispToken;
 
     #[test]
@@ -146,7 +155,7 @@ mod tests {
             ])
             .unwrap(),
             RispExp::List(vec![
-                RispExp::Func(RispFunction::Plus),
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
                 RispExp::Integer(1),
                 RispExp::Integer(2)
             ])
@@ -161,7 +170,7 @@ mod tests {
             ])
             .unwrap(),
             RispExp::List(vec![
-                RispExp::Func(RispFunction::Minus),
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Minus)),
                 RispExp::Integer(1),
                 RispExp::Integer(2)
             ])
@@ -176,7 +185,7 @@ mod tests {
             ])
             .unwrap(),
             RispExp::List(vec![
-                RispExp::Func(RispFunction::Multiply),
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Multiply)),
                 RispExp::Integer(1),
                 RispExp::Integer(2)
             ])
@@ -191,7 +200,7 @@ mod tests {
             ])
             .unwrap(),
             RispExp::List(vec![
-                RispExp::Func(RispFunction::Divide),
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
                 RispExp::Integer(1),
                 RispExp::Integer(2)
             ])
@@ -206,7 +215,7 @@ mod tests {
             ])
             .unwrap(),
             RispExp::List(vec![
-                RispExp::Func(RispFunction::Xor),
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
                 RispExp::Integer(1),
                 RispExp::Integer(2)
             ])
@@ -221,7 +230,7 @@ mod tests {
             ])
             .unwrap(),
             RispExp::List(vec![
-                RispExp::Func(RispFunction::Or),
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
                 RispExp::Integer(1),
                 RispExp::Integer(2)
             ])
@@ -236,7 +245,26 @@ mod tests {
             ])
             .unwrap(),
             RispExp::List(vec![
-                RispExp::Func(RispFunction::And),
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::And)),
+                RispExp::Integer(1),
+                RispExp::Integer(2)
+            ])
+        );
+    }
+
+    #[test]
+    fn builtin_ne() {
+        assert_ne!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::Symbol("and".to_string()),
+                RispToken::Integer(1),
+                RispToken::Integer(2),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
                 RispExp::Integer(1),
                 RispExp::Integer(2)
             ])
