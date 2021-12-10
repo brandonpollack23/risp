@@ -1,20 +1,15 @@
-use regex::Regex;
-use std::str::FromStr;
+use std::fmt::{Debug, Formatter};
+use std::ptr::addr_of;
 
 use crate::error::{RispError, RispResult};
-
-pub fn tokenize(line: &str) -> RispResult<Vec<RispToken>> {
-    Tokenizer::new().tokenize(line)
-}
+use crate::tokenizer::RispToken;
 
 pub fn parse(tokens: &[RispToken]) -> RispResult<RispExp> {
     parse_internal(tokens).map(|exp| exp.0)
 }
 
 fn parse_internal<'a>(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
-    let (token, rest) = tokens
-        .split_first()
-        .ok_or(RispError::Reason("Could not get token".to_string()))?;
+    let (token, rest) = tokens.split_first().unwrap();
     match &token {
         RispToken::LParen => read_seq(rest),
         RispToken::RParen => Err(RispError::UnexpectedToken(RispToken::RParen)),
@@ -26,8 +21,15 @@ fn parse_atom(token: &RispToken) -> RispResult<RispExp> {
     match token {
         RispToken::Integer(x) => Ok(RispExp::Integer(*x)),
         RispToken::Float(x) => Ok(RispExp::Float(*x)),
-        RispToken::Symbol(str) => Ok(RispExp::Symbol(str.clone())),
+        RispToken::Symbol(str) => parse_symbol(str),
         other => Err(RispError::UnexpectedToken(other.clone())),
+    }
+}
+
+fn parse_symbol(str: &str) -> Result<RispExp, RispError> {
+    match str {
+        builtin if RispFunction::is_builtin(str) => Ok(RispExp::Func(builtin.into())),
+        _ => Ok(RispExp::Symbol(str.to_string())),
     }
 }
 
@@ -46,62 +48,67 @@ fn read_seq(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
     }
 }
 
-struct Tokenizer {
-    int_matcher: Regex,
-    float_matcher: Regex,
-    symbol_matcher: Regex,
-}
-
-impl Tokenizer {
-    pub fn new() -> Tokenizer {
-        Tokenizer {
-            int_matcher: Regex::new(r#"[0-9]+[_0-9]*[0-9]"#).unwrap(),
-            float_matcher: Regex::new(r#"[0-9]+\.?[0-9]*f?"#).unwrap(),
-            symbol_matcher: Regex::new(r#"[A-Za-z_]+[A-Za-z0-9_]*"#).unwrap(),
-        }
-    }
-
-    fn tokenize(&self, line: &str) -> RispResult<Vec<RispToken>> {
-        line.replace("(", " ( ")
-            .replace(")", " ) ")
-            .split_whitespace()
-            .map(|x| x.to_string())
-            .map(|s| match s.as_str() {
-                "(" => Ok(RispToken::LParen),
-                ")" => Ok(RispToken::RParen),
-                token => self.tokenize_element(token),
-            })
-            .collect()
-    }
-
-    fn tokenize_element(&self, elem: &str) -> RispResult<RispToken> {
-        match elem {
-            int if self.int_matcher.is_match(int) => {
-                Ok(RispToken::Integer(i64::from_str(&int.replace("_", ""))?))
-            }
-            float if self.float_matcher.is_match(float) => Ok(RispToken::Float(
-                f64::from_str(float).expect(&format!("Unable to parse {} as f64", float)),
-            )),
-            sym if self.symbol_matcher.is_match(sym) => Ok(RispToken::Symbol(sym.to_string())),
-            other => Err(RispError::UnrecognizedToken(other.to_string())),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum RispToken {
-    LParen,
-    RParen,
-    Symbol(String),
-    Float(f64),
-    Integer(i64),
-    // TODO char and string
-}
-
 #[derive(Clone, Debug)]
 pub enum RispExp {
     Symbol(String),
-    Integer(i64),
+    Integer(i32),
     Float(f64),
     List(Vec<RispExp>),
+
+    Func(RispFunction),
+}
+
+#[derive(Clone)]
+pub enum RispFunction {
+    Function(fn(&[RispExp]) -> RispResult<RispExp>),
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Xor,
+    Or,
+    And,
+    // TODO if
+    // TODO pow
+}
+
+impl RispFunction {
+    fn is_builtin(str: &str) -> bool {
+        match str {
+            "+" | "-" | "*" | "/" | "xor" | "or" | "and" => true,
+            _ => false,
+        }
+    }
+}
+
+impl From<&str> for RispFunction {
+    fn from(str: &str) -> Self {
+        match str {
+            "+" => RispFunction::Plus,
+            "-" => RispFunction::Minus,
+            "*" => RispFunction::Multiply,
+            "/" => RispFunction::Divide,
+            "xor" => RispFunction::Xor,
+            "or" => RispFunction::Or,
+            "and" => RispFunction::And,
+            _ => panic!("This is not a valid built in!"),
+        }
+    }
+}
+
+impl Debug for RispFunction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let out = match self {
+            RispFunction::Function(f) => format!("#f@{:?}", addr_of!(f)),
+            RispFunction::Plus => "+".to_string(),
+            RispFunction::Minus => "-".to_string(),
+            RispFunction::Multiply => "*".to_string(),
+            RispFunction::Divide => "/".to_string(),
+            RispFunction::Xor => "xor".to_string(),
+            RispFunction::Or => "or".to_string(),
+            RispFunction::And => "and".to_string(),
+        };
+
+        f.write_str(&out)
+    }
 }

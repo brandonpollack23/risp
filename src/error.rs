@@ -1,4 +1,4 @@
-use crate::parser::RispToken;
+use crate::tokenizer::RispToken;
 use std::num::{ParseFloatError, ParseIntError};
 use thiserror::Error;
 
@@ -10,6 +10,9 @@ pub enum RispError {
     UnrecognizedToken(String),
     #[error("The token {0:?} was not expected here")]
     UnexpectedToken(RispToken),
+
+    #[error("Attempting to add non float/int with addition builtin")]
+    AdditionError,
 
     #[error("Error parsing integer: {source}")]
     ParseIntError {
@@ -24,6 +27,7 @@ pub enum RispError {
 
     #[error("The previous LParen was unterminated")]
     UnterminatedList,
-    #[error("The error failed due to {0}")]
-    Reason(String),
+
+    #[error("The form must begin with an executable function to be evaluated")]
+    FirstListElementIsNotExecutable,
 }
