@@ -265,7 +265,6 @@ mod tests {
         );
     }
 
-    // TODO NOW mul
     // TODO NOW div
     // TODO NOW and
     // TODO NOW or

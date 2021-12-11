@@ -43,6 +43,20 @@ impl RispEnv {
         };
     }
 
+    pub fn multiply(&self, args: &[RispExp]) -> RispResult<RispExp> {
+        Self::check_for_illegal_arithmetic_input(args)?;
+
+        return if args.iter().any(|arg| matches!(arg, RispExp::Float(_))) {
+            Ok(RispExp::Float(
+                args.iter().map(|arg| Self::exp_to_float(arg)).product(),
+            ))
+        } else {
+            Ok(RispExp::Integer(
+                args.iter().map(Self::exp_to_int).product::<i32>(),
+            ))
+        };
+    }
+
     fn check_for_illegal_arithmetic_input(args: &[RispExp]) -> RispResult<()> {
         if args
             .iter()
@@ -52,10 +66,6 @@ impl RispEnv {
         }
 
         Ok(())
-    }
-
-    pub fn multiply(&self, p0: &[RispExp]) -> RispResult<RispExp> {
-        todo!()
     }
 
     fn exp_to_float(arg: &RispExp) -> f64 {
