@@ -22,7 +22,7 @@ fn parse_atom(token: &RispToken) -> RispResult<RispExp> {
         RispToken::Bool(b) => Ok(RispExp::Bool(*b)),
         RispToken::Integer(i) => Ok(RispExp::Integer(*i)),
         RispToken::Float(f) => Ok(RispExp::Float(*f)),
-        RispToken::Symbol(str) => parse_symbol(str),
+        RispToken::String(str) => parse_symbol(str),
         other => Err(RispError::UnexpectedToken(other.clone())),
     }
 }
@@ -150,7 +150,7 @@ mod tests {
         assert_eq!(
             parse(&[
                 RispToken::LParen,
-                RispToken::Symbol("+".to_string()),
+                RispToken::String("+".to_string()),
                 RispToken::Integer(1),
                 RispToken::Integer(2),
                 RispToken::RParen
@@ -165,7 +165,7 @@ mod tests {
         assert_eq!(
             parse(&[
                 RispToken::LParen,
-                RispToken::Symbol("-".to_string()),
+                RispToken::String("-".to_string()),
                 RispToken::Integer(1),
                 RispToken::Integer(2),
                 RispToken::RParen
@@ -180,7 +180,7 @@ mod tests {
         assert_eq!(
             parse(&[
                 RispToken::LParen,
-                RispToken::Symbol("*".to_string()),
+                RispToken::String("*".to_string()),
                 RispToken::Integer(1),
                 RispToken::Integer(2),
                 RispToken::RParen
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(
             parse(&[
                 RispToken::LParen,
-                RispToken::Symbol("/".to_string()),
+                RispToken::String("/".to_string()),
                 RispToken::Integer(1),
                 RispToken::Integer(2),
                 RispToken::RParen
@@ -210,7 +210,7 @@ mod tests {
         assert_eq!(
             parse(&[
                 RispToken::LParen,
-                RispToken::Symbol("xor".to_string()),
+                RispToken::String("xor".to_string()),
                 RispToken::Integer(1),
                 RispToken::Integer(2),
                 RispToken::RParen
@@ -225,7 +225,7 @@ mod tests {
         assert_eq!(
             parse(&[
                 RispToken::LParen,
-                RispToken::Symbol("or".to_string()),
+                RispToken::String("or".to_string()),
                 RispToken::Integer(1),
                 RispToken::Integer(2),
                 RispToken::RParen
@@ -240,7 +240,7 @@ mod tests {
         assert_eq!(
             parse(&[
                 RispToken::LParen,
-                RispToken::Symbol("and".to_string()),
+                RispToken::String("and".to_string()),
                 RispToken::Integer(1),
                 RispToken::Integer(2),
                 RispToken::RParen
@@ -259,7 +259,7 @@ mod tests {
         assert_ne!(
             parse(&[
                 RispToken::LParen,
-                RispToken::Symbol("and".to_string()),
+                RispToken::String("and".to_string()),
                 RispToken::Integer(1),
                 RispToken::Integer(2),
                 RispToken::RParen

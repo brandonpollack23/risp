@@ -12,8 +12,8 @@ pub enum RispError {
     #[error("The token {0:?} was not expected here")]
     UnexpectedToken(RispToken),
 
-    #[error("Attempting to add non float/int with addition builtin")]
-    AdditionError,
+    #[error("Arithmetic error occured: {0}")]
+    ArithmeticError(&'static str),
 
     #[error("Error parsing integer: {0}")]
     ParseIntError(#[from] ParseIntError),
@@ -28,3 +28,6 @@ pub enum RispError {
     #[error("The form must begin with an executable function to be evaluated")]
     FirstListElementIsNotExecutable,
 }
+
+pub const ILLEGAL_TYPE_FOR_ARITHMETIC_OP: &str =
+    "Attempting to do arithmetic operation on non float/int with builtin";

@@ -13,7 +13,7 @@ pub struct Tokenizer {
     symbol_matcher: Regex,
 }
 
-// TODO AFTER symbols should always attempt to be evaluated unless quoted, so differentiate
+// TODO quote tokens and reader macros for '
 impl Tokenizer {
     pub fn new() -> Tokenizer {
         Tokenizer {
@@ -47,7 +47,7 @@ impl Tokenizer {
                 f64::from_str(&float.replace("f", ""))
                     .expect(&format!("Unable to parse {} as f64", float)),
             )),
-            sym if self.symbol_matcher.is_match(sym) => Ok(RispToken::Symbol(sym.to_string())),
+            sym if self.symbol_matcher.is_match(sym) => Ok(RispToken::String(sym.to_string())),
             other => Err(RispError::UnrecognizedToken(other.to_string())),
         }
     }
@@ -57,7 +57,7 @@ impl Tokenizer {
 pub enum RispToken {
     LParen,
     RParen,
-    Symbol(String),
+    String(String),
     Bool(bool),
     Float(f64),
     Integer(i32),
@@ -83,7 +83,7 @@ mod tests {
     fn operator_assertion(op: &str) {
         assert_eq!(
             tokenize(op).unwrap(),
-            vec![RispToken::Symbol(op.to_string())]
+            vec![RispToken::String(op.to_string())]
         );
     }
 
@@ -91,7 +91,7 @@ mod tests {
     fn recognizes_strings_as_symbols() {
         assert_eq!(
             tokenize("engage").unwrap(),
-            vec![RispToken::Symbol("engage".to_string())]
+            vec![RispToken::String("engage".to_string())]
         )
     }
 

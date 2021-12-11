@@ -1,4 +1,4 @@
-use crate::error::{RispError, RispResult};
+use crate::error::{RispError, RispResult, ILLEGAL_TYPE_FOR_ARITHMETIC_OP};
 use crate::parser::RispExp;
 use std::collections::HashMap;
 
@@ -10,12 +10,7 @@ pub struct RispEnv {
 impl RispEnv {
     // TODO on math functions handle overflow/cases
     pub fn plus(&self, args: &[RispExp]) -> RispResult<RispExp> {
-        if args
-            .iter()
-            .any(|arg| !(matches!(arg, RispExp::Integer(_) | RispExp::Float(_))))
-        {
-            return Err(RispError::AdditionError);
-        }
+        Self::check_for_illegal_arithmetic_input(args)?;
 
         return if args.iter().any(|arg| matches!(arg, RispExp::Float(_))) {
             Ok(RispExp::Float(
@@ -29,12 +24,7 @@ impl RispEnv {
     }
 
     pub fn minus(&self, args: &[RispExp]) -> RispResult<RispExp> {
-        if args
-            .iter()
-            .any(|arg| !(matches!(arg, RispExp::Integer(_) | RispExp::Float(_))))
-        {
-            return Err(RispError::AdditionError);
-        }
+        Self::check_for_illegal_arithmetic_input(args)?;
 
         let first = args.first();
         if first.is_none() {
@@ -53,8 +43,20 @@ impl RispEnv {
         };
     }
 
-    // TODO multiply divide xor or and
-    // TODO truthiness in xor/or/and
+    fn check_for_illegal_arithmetic_input(args: &[RispExp]) -> RispResult<()> {
+        if args
+            .iter()
+            .any(|arg| !(matches!(arg, RispExp::Integer(_) | RispExp::Float(_))))
+        {
+            return Err(RispError::ArithmeticError(ILLEGAL_TYPE_FOR_ARITHMETIC_OP));
+        }
+
+        Ok(())
+    }
+
+    pub fn multiply(&self, p0: &[RispExp]) -> RispResult<RispExp> {
+        todo!()
+    }
 
     fn exp_to_float(arg: &RispExp) -> f64 {
         match arg {
