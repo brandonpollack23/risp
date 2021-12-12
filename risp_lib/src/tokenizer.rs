@@ -1,6 +1,6 @@
 use crate::error::{RispError, RispResult};
 use crate::symbols_constants::{
-    DEF_SYM, EQ_SYM, GTE_SYM, GT_SYM, IF_SYM, LTE_SYM, LT_SYM, NIL_SYM,
+    DEF_SYM, EQ_SYM, FN_SYM, GTE_SYM, GT_SYM, IF_SYM, LTE_SYM, LT_SYM, NIL_SYM,
 };
 use regex::Regex;
 use std::str::FromStr;
@@ -52,6 +52,7 @@ impl Tokenizer {
             NIL_SYM => Ok(RispToken::Nil),
             DEF_SYM => Ok(RispToken::Def),
             IF_SYM => Ok(RispToken::If),
+            FN_SYM => Ok(RispToken::Fn),
 
             c if self.char_matcher.is_match(c) => Ok(RispToken::Char(c.chars().nth(0).unwrap())),
             b if self.bool_matcher.is_match(b) => Ok(RispToken::Bool(bool::from_str(b)?)),
@@ -108,6 +109,8 @@ pub enum RispToken {
 
     Def,
     If,
+
+    Fn,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -265,6 +268,26 @@ mod tests {
                 RispToken::Bool(true),
                 RispToken::StringLiteral("true".to_owned()),
                 RispToken::StringLiteral("false".to_owned()),
+                RispToken::RParen
+            ]
+        );
+    }
+
+    #[test]
+    fn recognizes_fn() {
+        assert_eq!(
+            tokenize(r#"(fn (x) (+ x 1))"#).unwrap(),
+            vec![
+                RispToken::LParen,
+                RispToken::Fn,
+                RispToken::LParen,
+                RispToken::Symbol("x".to_owned()),
+                RispToken::RParen,
+                RispToken::LParen,
+                RispToken::Symbol("+".to_owned()),
+                RispToken::Symbol("x".to_owned()),
+                RispToken::Integer(1),
+                RispToken::RParen,
                 RispToken::RParen
             ]
         );

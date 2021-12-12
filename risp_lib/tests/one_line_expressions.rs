@@ -9,7 +9,7 @@ fn test_add() {
     let mut env = RispEnv::default();
     let tokens = tokenizer::tokenize("(+ 1 1)").unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Integer(2));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Integer(2));
 }
 
 #[test]
@@ -17,7 +17,7 @@ fn test_with_negative() {
     let mut env = RispEnv::default();
     let tokens = tokenizer::tokenize("(+ 2 -1)").unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Integer(1));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Integer(1));
 }
 
 #[test]
@@ -25,7 +25,7 @@ fn test_sub() {
     let mut env = RispEnv::default();
     let tokens = tokenizer::tokenize("(- 2 1)").unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Integer(1));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Integer(1));
 }
 
 #[test]
@@ -33,7 +33,7 @@ fn test_nesting() {
     let mut env = RispEnv::default();
     let tokens = tokenizer::tokenize("(- 2 (+ 10 10) 37 (* 10 10))").unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Integer(-155));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Integer(-155));
 }
 
 #[test]
@@ -41,59 +41,59 @@ fn test_and() {
     let mut env = RispEnv::default();
     let tokens = tokenizer::tokenize(r#"(and true "wakeupneo")"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(true));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(true));
 
     let tokens = tokenizer::tokenize(r#"(and false "wakeupneo")"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(false));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(false));
 }
 #[test]
 fn test_cmp() {
     let mut env = RispEnv::default();
     let tokens = tokenizer::tokenize(r#"(< 1 100)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(true));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(true));
     let tokens = tokenizer::tokenize(r#"(< 100 1)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(false));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(false));
     let tokens = tokenizer::tokenize(r#"(< 100 100)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(false));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(false));
 
     let tokens = tokenizer::tokenize(r#"(> 1 100)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(false));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(false));
     let tokens = tokenizer::tokenize(r#"(> 100 1)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(true));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(true));
     let tokens = tokenizer::tokenize(r#"(> 100 100)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(false));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(false));
 
     let tokens = tokenizer::tokenize(r#"(<= 1 100)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(true));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(true));
     let tokens = tokenizer::tokenize(r#"(<= 100 100)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(true));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(true));
     let tokens = tokenizer::tokenize(r#"(<= 100 1)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(false));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(false));
 
     let tokens = tokenizer::tokenize(r#"(>= 1 100)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(false));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(false));
     let tokens = tokenizer::tokenize(r#"(>= 100 100)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(true));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(true));
     let tokens = tokenizer::tokenize(r#"(>= 100 1)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(true));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(true));
 
     let tokens = tokenizer::tokenize(r#"(= 100 1)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(false));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(false));
     let tokens = tokenizer::tokenize(r#"(= 100 100)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Bool(true));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Bool(true));
 }

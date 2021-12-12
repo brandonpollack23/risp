@@ -51,7 +51,7 @@ fn setup_history(rl: &mut Editor<impl Helper>) {
 fn ep(input: String, env: &mut RispEnv) -> anyhow::Result<()> {
     let token_stream = tokenize(&input)?;
     let exp = parse(&token_stream)?;
-    println!("{}", eval(exp, env)?);
+    println!("{}", eval(&exp, env)?);
     Ok(())
 }
 

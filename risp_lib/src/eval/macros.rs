@@ -7,10 +7,10 @@ macro_rules! number_list_apply {
         } else {
             if $args.iter().any(|arg| matches!(arg, RispExp::Float(_))) {
                 Ok(RispExp::Float($method(
-                    $args.iter().map(|arg| exp_to_float(arg)),
+                    $args.iter().map(|arg| expr_to_float(arg)),
                 )))
             } else {
-                Ok(RispExp::Integer($method($args.iter().map(exp_to_int))))
+                Ok(RispExp::Integer($method($args.iter().map(expr_to_int))))
             }
         }
     }};
@@ -30,12 +30,12 @@ macro_rules! number_list_subtractive_apply {
                 let first = first.unwrap();
                 let rest = &$args[1..];
                 if $args.iter().any(|arg| matches!(arg, RispExp::Float(_))) {
-                    let first = exp_to_float(first);
-                    let sub: f64 = $others_combiner(rest.iter().map(exp_to_float));
+                    let first = expr_to_float(first);
+                    let sub: f64 = $others_combiner(rest.iter().map(expr_to_float));
                     Ok(RispExp::Float($operation(first, sub)))
                 } else {
-                    let first = exp_to_int(first);
-                    let sub: i32 = $others_combiner(rest.iter().map(exp_to_int));
+                    let first = expr_to_int(first);
+                    let sub: i32 = $others_combiner(rest.iter().map(expr_to_int));
                     Ok(RispExp::Integer($operation(first, sub)))
                 }
             }

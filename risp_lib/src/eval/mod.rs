@@ -5,23 +5,23 @@ use crate::{number_list_apply, number_list_subtractive_apply};
 
 mod macros;
 
-pub fn eval(exp: RispExp, env: &mut RispEnv) -> RispResult<RispExp> {
+pub fn eval(exp: &RispExp, env: &mut RispEnv) -> RispResult<RispExp> {
     match exp {
         RispExp::List(forms) => eval_list_as_func(forms, env),
         RispExp::Symbol(s) if env.has_interned_var(&s) => {
             Ok(env.get(&s).map(|x| x.clone()).unwrap())
         }
-        _ => Ok(exp),
+        _ => Ok(exp.clone()),
     }
 }
 
-fn eval_list_as_func(mut forms: Vec<RispExp>, env: &mut RispEnv) -> RispResult<RispExp> {
+fn eval_list_as_func(mut forms: &[RispExp], env: &mut RispEnv) -> RispResult<RispExp> {
     if forms.len() < 1 {
         return Ok(RispExp::List(vec![]));
     }
 
     let evaluated = forms
-        .drain(..)
+        .iter()
         .map(|x| eval(x, env))
         .collect::<RispResult<Vec<RispExp>>>()?;
     let (first, rest) = evaluated.split_first().unwrap();
@@ -43,6 +43,8 @@ fn eval_list_as_func(mut forms: Vec<RispExp>, env: &mut RispEnv) -> RispResult<R
             RispFunction::Builtin(RispBuiltinFunction::GTE) => op_gte(&rest),
             RispFunction::Builtin(RispBuiltinFunction::EQ) => op_eq(&rest),
 
+            // TODO NOW clean
+            // TODO NOW make using builtins illegal
             RispFunction::Builtin(RispBuiltinFunction::Def) => {
                 if rest.len() != 2 {
                     return Err(RispError::ArityMismatch(f.clone()));
@@ -70,10 +72,33 @@ fn eval_list_as_func(mut forms: Vec<RispExp>, env: &mut RispEnv) -> RispResult<R
                 return Err(RispError::MalformedDefExpression);
             }
 
-            RispFunction::Function(f) => f(&rest),
+            f @ RispFunction::Function { params, body } => {
+                let new_env = &mut env_for_lambda(f, params, rest, env)?;
+                eval(body.as_ref(), new_env)
+            }
         },
         _ => Err(RispError::FirstFormMustBeFunction(first.clone())),
     }
+}
+
+fn env_for_lambda<'a, 'b>(
+    f: &'a RispFunction,
+    params: &'a RispExp,
+    bindings: &'a [RispExp],
+    parent: &'b mut RispEnv,
+) -> RispResult<RispEnv<'b>> {
+    // TODO exp to list
+    let p = expr_to_list(params)?;
+    if p.len() != bindings.len() {
+        return Err(RispError::ArityMismatch(f.clone()));
+    }
+
+    let mut res = RispEnv::with_outer(parent);
+    for (param, binding) in p.iter().zip(bindings) {
+        // TODO exp to symbol
+        res.def(expr_to_symbol(param)?, binding)?;
+    }
+    Ok(res)
 }
 
 // TODO on math functions handle overflow/cases
@@ -236,7 +261,7 @@ fn check_for_illegal_arithmetic_input(args: &[RispExp]) -> RispResult<()> {
     Ok(())
 }
 
-fn exp_to_float(arg: &RispExp) -> f64 {
+fn expr_to_float(arg: &RispExp) -> f64 {
     match arg {
         RispExp::Integer(i) => f64::from(*i),
         RispExp::Float(f) => *f,
@@ -244,10 +269,34 @@ fn exp_to_float(arg: &RispExp) -> f64 {
     }
 }
 
-fn exp_to_int(arg: &RispExp) -> i32 {
+fn expr_to_int(arg: &RispExp) -> i32 {
     match arg {
         RispExp::Integer(i) => *i,
         _ => panic!(),
+    }
+}
+
+fn expr_to_symbol(arg: &RispExp) -> RispResult<&str> {
+    match arg {
+        RispExp::Symbol(s) => Ok(s.as_str()),
+        _ => {
+            return Err(RispError::GenericError(format!(
+                "{0:?} should be a symbol",
+                arg
+            )))
+        }
+    }
+}
+
+fn expr_to_list(arg: &RispExp) -> RispResult<&[RispExp]> {
+    match arg {
+        RispExp::List(p) => Ok(p.as_slice()),
+        _ => {
+            return Err(RispError::GenericError(format!(
+                "{0:?} should be a list",
+                arg
+            )))
+        }
     }
 }
 
@@ -268,7 +317,7 @@ mod tests {
             RispExp::Integer(37),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37 + 42));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37 + 42));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
@@ -277,28 +326,31 @@ mod tests {
             RispExp::Integer(42),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37 + 3 * 42));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37 + 3 * 42));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
             RispExp::Integer(37),
             RispExp::Integer(-42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37 - 42));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37 - 42));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
             RispExp::Integer(-37),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(-37 + 42));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(-37 + 42));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
             RispExp::Float(-37f64),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Float(-37f64 + 42f64));
+        assert_eq!(
+            eval(&exp, &mut env).unwrap(),
+            RispExp::Float(-37f64 + 42f64)
+        );
     }
 
     #[test]
@@ -308,7 +360,7 @@ mod tests {
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
             RispExp::Integer(37),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37));
     }
 
     #[test]
@@ -317,7 +369,7 @@ mod tests {
         let exp = RispExp::List(vec![RispExp::Func(RispFunction::Builtin(
             RispBuiltinFunction::Plus,
         ))]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(0));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(0));
     }
 
     #[test]
@@ -329,7 +381,7 @@ mod tests {
             RispExp::Integer(42),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap_err(),
+            eval(&exp, &mut env).unwrap_err(),
             RispError::TypeError(ILLEGAL_TYPE_FOR_ARITHMETIC_OP)
         );
     }
@@ -342,7 +394,7 @@ mod tests {
             RispExp::Integer(37),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37 - 42));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37 - 42));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Minus)),
@@ -351,28 +403,31 @@ mod tests {
             RispExp::Integer(42),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37 - 3 * 42));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37 - 3 * 42));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Minus)),
             RispExp::Integer(37),
             RispExp::Integer(-42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37 - (-42)));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37 - (-42)));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Minus)),
             RispExp::Integer(-37),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(-37 - 42));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(-37 - 42));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Minus)),
             RispExp::Float(-37f64),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Float(-37f64 - 42f64));
+        assert_eq!(
+            eval(&exp, &mut env).unwrap(),
+            RispExp::Float(-37f64 - 42f64)
+        );
     }
 
     #[test]
@@ -382,7 +437,7 @@ mod tests {
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Minus)),
             RispExp::Integer(37),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37));
     }
 
     #[test]
@@ -391,7 +446,7 @@ mod tests {
         let exp = RispExp::List(vec![RispExp::Func(RispFunction::Builtin(
             RispBuiltinFunction::Minus,
         ))]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(0));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(0));
     }
 
     #[test]
@@ -403,7 +458,7 @@ mod tests {
             RispExp::Integer(42),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap_err(),
+            eval(&exp, &mut env).unwrap_err(),
             RispError::TypeError(ILLEGAL_TYPE_FOR_ARITHMETIC_OP)
         );
     }
@@ -416,7 +471,7 @@ mod tests {
             RispExp::Integer(37),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37 * 42));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37 * 42));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Multiply)),
@@ -426,7 +481,7 @@ mod tests {
             RispExp::Integer(42),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap(),
+            eval(&exp, &mut env).unwrap(),
             RispExp::Integer(37 * 42 * 42 * 42)
         );
 
@@ -435,21 +490,24 @@ mod tests {
             RispExp::Integer(37),
             RispExp::Integer(-42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37 * (-42)));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37 * (-42)));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Multiply)),
             RispExp::Integer(-37),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(-37 * 42));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(-37 * 42));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Multiply)),
             RispExp::Float(-37f64),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Float(-37f64 * 42f64));
+        assert_eq!(
+            eval(&exp, &mut env).unwrap(),
+            RispExp::Float(-37f64 * 42f64)
+        );
     }
 
     #[test]
@@ -459,7 +517,7 @@ mod tests {
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Multiply)),
             RispExp::Integer(37),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37));
     }
 
     #[test]
@@ -468,7 +526,7 @@ mod tests {
         let exp = RispExp::List(vec![RispExp::Func(RispFunction::Builtin(
             RispBuiltinFunction::Multiply,
         ))]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(1));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(1));
     }
 
     #[test]
@@ -480,7 +538,7 @@ mod tests {
             RispExp::Integer(42),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap_err(),
+            eval(&exp, &mut env).unwrap_err(),
             RispError::TypeError(ILLEGAL_TYPE_FOR_ARITHMETIC_OP)
         );
     }
@@ -493,7 +551,7 @@ mod tests {
             RispExp::Integer(100),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(100 / 42));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(100 / 42));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
@@ -503,7 +561,7 @@ mod tests {
             RispExp::Integer(5),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap(),
+            eval(&exp, &mut env).unwrap(),
             RispExp::Integer(1000 / 10 / 10 / 5)
         );
 
@@ -512,14 +570,14 @@ mod tests {
             RispExp::Integer(100),
             RispExp::Integer(-50),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(100 / -50));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(100 / -50));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
             RispExp::Integer(-100),
             RispExp::Integer(50),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(-100 / 50));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(-100 / 50));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
@@ -527,7 +585,7 @@ mod tests {
             RispExp::Integer(500),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap(),
+            eval(&exp, &mut env).unwrap(),
             RispExp::Float(-1000f64 / 500f64)
         );
     }
@@ -539,7 +597,7 @@ mod tests {
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
             RispExp::Integer(37),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(37));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37));
     }
 
     #[test]
@@ -549,7 +607,7 @@ mod tests {
             RispBuiltinFunction::Divide,
         ))]);
         assert_eq!(
-            eval(exp, &mut env).unwrap_err(),
+            eval(&exp, &mut env).unwrap_err(),
             RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::Divide))
         );
     }
@@ -563,7 +621,7 @@ mod tests {
             RispExp::Integer(42),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap_err(),
+            eval(&exp, &mut env).unwrap_err(),
             RispError::TypeError(ILLEGAL_TYPE_FOR_ARITHMETIC_OP)
         );
     }
@@ -576,14 +634,14 @@ mod tests {
             RispExp::Bool(true),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::And)),
             RispExp::Bool(false),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::And)),
@@ -591,7 +649,7 @@ mod tests {
             RispExp::Bool(false),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::And)),
@@ -600,7 +658,7 @@ mod tests {
             RispExp::Bool(true),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
     }
 
     #[test]
@@ -610,13 +668,13 @@ mod tests {
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::And)),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::And)),
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
     }
 
     #[test]
@@ -625,7 +683,7 @@ mod tests {
         let exp = RispExp::List(vec![RispExp::Func(RispFunction::Builtin(
             RispBuiltinFunction::And,
         ))]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
     }
 
     #[test]
@@ -637,7 +695,7 @@ mod tests {
             RispExp::Integer(42),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::And)),
@@ -645,21 +703,21 @@ mod tests {
             RispExp::Integer(42),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::And)),
             RispExp::Integer(0),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::And)),
             RispExp::Integer(42),
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
     }
 
     #[test]
@@ -670,7 +728,7 @@ mod tests {
             RispExp::Bool(true),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
@@ -678,7 +736,7 @@ mod tests {
             RispExp::Bool(false),
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
@@ -686,7 +744,7 @@ mod tests {
             RispExp::Bool(false),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
@@ -695,7 +753,7 @@ mod tests {
             RispExp::Bool(true),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
     }
 
     #[test]
@@ -705,13 +763,13 @@ mod tests {
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
     }
 
     #[test]
@@ -720,7 +778,7 @@ mod tests {
         let exp = RispExp::List(vec![RispExp::Func(RispFunction::Builtin(
             RispBuiltinFunction::Or,
         ))]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
     }
 
     #[test]
@@ -732,28 +790,28 @@ mod tests {
             RispExp::Integer(42),
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
             RispExp::Nil,
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
             RispExp::Integer(0),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
             RispExp::Integer(42),
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
     }
 
     #[test]
@@ -765,7 +823,7 @@ mod tests {
             RispExp::Bool(true),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap_err(),
+            eval(&exp, &mut env).unwrap_err(),
             RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::Not))
         );
 
@@ -776,7 +834,7 @@ mod tests {
             RispExp::Bool(false),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap_err(),
+            eval(&exp, &mut env).unwrap_err(),
             RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::Not))
         );
     }
@@ -788,13 +846,13 @@ mod tests {
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Not)),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Not)),
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
     }
 
     #[test]
@@ -804,7 +862,7 @@ mod tests {
             RispBuiltinFunction::Not,
         ))]);
         assert_eq!(
-            eval(exp, &mut env).unwrap_err(),
+            eval(&exp, &mut env).unwrap_err(),
             RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::Not))
         );
     }
@@ -816,19 +874,19 @@ mod tests {
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Not)),
             RispExp::String("Locutus".to_owned()),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Not)),
             RispExp::Nil,
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Not)),
             RispExp::Integer(0),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
     }
 
     #[test]
@@ -839,7 +897,7 @@ mod tests {
             RispExp::Bool(true),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
@@ -847,7 +905,7 @@ mod tests {
             RispExp::Bool(false),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
@@ -855,7 +913,7 @@ mod tests {
             RispExp::Bool(false),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
@@ -864,7 +922,7 @@ mod tests {
             RispExp::Bool(true),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
     }
 
     #[test]
@@ -874,13 +932,13 @@ mod tests {
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
     }
 
     #[test]
@@ -889,7 +947,7 @@ mod tests {
         let exp = RispExp::List(vec![RispExp::Func(RispFunction::Builtin(
             RispBuiltinFunction::Xor,
         ))]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
     }
 
     #[test]
@@ -900,28 +958,28 @@ mod tests {
             RispExp::String("Locutus".to_owned()),
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
             RispExp::Nil,
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
             RispExp::Integer(0),
             RispExp::Bool(true),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(false));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
             RispExp::Integer(42),
             RispExp::Bool(false),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Bool(true));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
     }
 
     #[test]
@@ -937,7 +995,7 @@ mod tests {
             ]),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap(),
+            eval(&exp, &mut env).unwrap(),
             RispExp::Integer(37 + 42 + 100)
         );
 
@@ -955,7 +1013,7 @@ mod tests {
             RispExp::Integer(37),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap(),
+            eval(&exp, &mut env).unwrap(),
             RispExp::Integer(42 + 42 + 100 + 37)
         );
     }
@@ -968,7 +1026,7 @@ mod tests {
             RispExp::Symbol("captain".to_owned()),
             RispExp::String("picard".to_owned()),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Nil);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Nil);
         assert_eq!(
             env.get("captain").unwrap(),
             &RispExp::String("picard".to_owned())
@@ -979,19 +1037,19 @@ mod tests {
             RispExp::Symbol("one".to_owned()),
             RispExp::Integer(1),
         ]);
-        eval(exp, &mut env).unwrap();
+        eval(&exp, &mut env).unwrap();
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Def)),
             RispExp::Symbol("two".to_owned()),
             RispExp::Integer(2),
         ]);
-        eval(exp, &mut env).unwrap();
+        eval(&exp, &mut env).unwrap();
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
             RispExp::Symbol("one".to_owned()),
             RispExp::Symbol("two".to_owned()),
         ]);
-        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(3));
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(3));
     }
 
     #[test]
@@ -1004,7 +1062,7 @@ mod tests {
             RispExp::String("false".to_owned()),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap(),
+            eval(&exp, &mut env).unwrap(),
             RispExp::String("true".to_owned())
         );
 
@@ -1015,8 +1073,35 @@ mod tests {
             RispExp::String("false".to_owned()),
         ]);
         assert_eq!(
-            eval(exp, &mut env).unwrap(),
+            eval(&exp, &mut env).unwrap(),
             RispExp::String("false".to_owned())
         );
+    }
+
+    #[test]
+    fn fn_works() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![RispExp::Func(RispFunction::Function {
+            params: Box::new(RispExp::List(vec![RispExp::Symbol("x".to_string())])),
+            body: Box::new(RispExp::List(vec![
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
+                RispExp::Symbol("x".to_string()),
+                RispExp::Integer(1),
+            ])),
+        })]);
+        let def = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Def)),
+            RispExp::Symbol("foo".to_owned()),
+            exp,
+        ]);
+        assert_eq!(eval(&def, &mut env).unwrap(), RispExp::Nil);
+
+        let invocation = RispExp::List(vec![
+            RispExp::Symbol("foo".to_owned()),
+            RispExp::Integer(37),
+        ]);
+        assert_eq!(eval(&invocation, &mut env).unwrap(), RispExp::Integer(38));
+
+        // TODO check that there is an outer in the env for the function.
     }
 }

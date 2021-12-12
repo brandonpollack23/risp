@@ -9,14 +9,14 @@ fn if_integration_test() {
     let tokens = tokenizer::tokenize(r#"(if true "true" "false")"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
     assert_eq!(
-        eval(expr, &mut env).unwrap(),
+        eval(&expr, &mut env).unwrap(),
         RispExp::String("true".to_owned())
     );
 
     let tokens = tokenizer::tokenize(r#"(if false "true" "false")"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
     assert_eq!(
-        eval(expr, &mut env).unwrap(),
+        eval(&expr, &mut env).unwrap(),
         RispExp::String("false".to_owned())
     );
 }

@@ -19,7 +19,6 @@ impl RispValidator {
 
 impl Validator for RispValidator {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult> {
-        // TODO check if all delimiters balanced and dont be valid in that case
         self.bracket_validator.validate(ctx)
     }
 }

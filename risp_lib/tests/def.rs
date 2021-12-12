@@ -8,11 +8,11 @@ fn def() {
     let mut env = RispEnv::default();
     let tokens = tokenizer::tokenize(r#"(def one 1)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Nil);
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Nil);
     let tokens = tokenizer::tokenize(r#"(def two 2)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Nil);
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Nil);
     let tokens = tokenizer::tokenize(r#"(+ one two)"#).unwrap();
     let expr = parser::parse(&tokens).unwrap();
-    assert_eq!(eval(expr, &mut env).unwrap(), RispExp::Integer(3));
+    assert_eq!(eval(&expr, &mut env).unwrap(), RispExp::Integer(3));
 }

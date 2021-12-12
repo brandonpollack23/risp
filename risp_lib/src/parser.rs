@@ -2,7 +2,10 @@ use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::ptr::addr_of;
 
-use crate::error::{RispError, RispResult};
+use crate::error::{
+    RispError, RispResult, EXPECTED_ARGS_LIST_FOR_FN, EXPECTED_FN_DEF_FOR_FN, TRAILING_TOKENS,
+    UNEXPECTED_CLOSING_PAREN,
+};
 use crate::parser::RispFunction::Builtin;
 use crate::symbols_constants::{
     AND_SYM, DEF_SYM, DIV_SYM, EQ_SYM, GTE_SYM, GT_SYM, IF_SYM, LTE_SYM, LT_SYM, MINUS_SYM,
@@ -13,7 +16,10 @@ use crate::tokenizer::{ComparisonOp, RispToken};
 pub fn parse(tokens: &[RispToken]) -> RispResult<RispExp> {
     let result = parse_internal(tokens)?;
     if result.1.len() > 0 {
-        return Err(RispError::UnexpectedToken(result.1.get(0).unwrap().clone()));
+        return Err(RispError::UnexpectedToken(
+            result.1.get(0).unwrap().clone(),
+            TRAILING_TOKENS.to_owned(),
+        ));
     }
     Ok(result.0)
 }
@@ -24,15 +30,48 @@ fn parse_internal<'a>(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken]
     }
     let (token, rest) = tokens.split_first().unwrap();
     match &token {
+        RispToken::Fn => read_fn(rest),
         RispToken::LParen => read_seq(rest),
-        RispToken::RParen => Err(RispError::UnexpectedToken(RispToken::RParen)),
+        RispToken::RParen => Err(RispError::UnexpectedToken(
+            token.clone(),
+            UNEXPECTED_CLOSING_PAREN.to_owned(),
+        )),
         _ => Ok((parse_atom(token)?, rest)),
     }
 }
 
-fn read_seq(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
+fn read_fn(rest: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
+    // TODO NOW push in fn that has lists not just list
+    let (args_list_begin, rest_args) = rest.split_first().ok_or(RispError::UnterminatedList)?;
+    let (args, rest_fn) = match args_list_begin {
+        RispToken::LParen => read_seq(rest_args)?,
+        _ => Err(RispError::UnexpectedToken(
+            args_list_begin.clone(),
+            EXPECTED_ARGS_LIST_FOR_FN.to_owned(),
+        ))?,
+    };
+    let (function_def_begin, rest_fn_def) =
+        rest_fn.split_first().ok_or(RispError::UnterminatedList)?;
+    let (body, rest_done) = match function_def_begin {
+        RispToken::LParen => read_seq(rest_fn_def)?,
+        _ => Err(RispError::UnexpectedToken(
+            args_list_begin.clone(),
+            EXPECTED_FN_DEF_FOR_FN.to_owned(),
+        ))?,
+    };
+
+    Ok((
+        RispExp::Func(RispFunction::Function {
+            params: Box::new(args.clone()),
+            body: Box::new(body.clone()),
+        }),
+        rest_done,
+    ))
+}
+
+fn read_seq(rest: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
     let mut res: Vec<RispExp> = vec![];
-    let mut xs = tokens;
+    let mut xs = rest;
     loop {
         let (next_token, rest) = xs.split_first().ok_or(RispError::UnterminatedList)?;
         if next_token == &RispToken::RParen {
@@ -61,7 +100,9 @@ fn parse_atom(token: &RispToken) -> RispResult<RispExp> {
         RispToken::Def => Ok(RispExp::Func(Builtin(RispBuiltinFunction::Def))),
         RispToken::If => Ok(RispExp::Func(Builtin(RispBuiltinFunction::If))),
 
-        t @ (RispToken::LParen | RispToken::RParen) => Err(RispError::UnexpectedToken(t.clone())),
+        t @ (RispToken::LParen | RispToken::RParen | RispToken::Fn) => {
+            Err(RispError::UnexpectedToken(t.clone(), "".to_owned()))
+        }
     }
 }
 
@@ -146,9 +187,13 @@ impl Display for RispExp {
     }
 }
 
-#[derive(Clone)]
+// TODO change from Box to Ref and propogate
+#[derive(Clone, PartialEq)]
 pub enum RispFunction {
-    Function(fn(&[RispExp]) -> RispResult<RispExp>),
+    Function {
+        params: Box<RispExp>,
+        body: Box<RispExp>,
+    },
     Builtin(RispBuiltinFunction),
 }
 
@@ -176,8 +221,6 @@ pub enum RispBuiltinFunction {
 
     Def,
     If,
-    // TODO functions/lambdas
-
     // Maybe add set!
 }
 
@@ -192,7 +235,13 @@ impl RispFunction {
 
     fn to_string(&self) -> String {
         match self {
-            RispFunction::Function(f) => format!("#f@{:?}", addr_of!(f)),
+            RispFunction::Function { params, body } => {
+                format!(
+                    "lambda \n\targs: {:?} \n\tbody: {:?}",
+                    params.as_ref(),
+                    body.as_ref()
+                )
+            }
             RispFunction::Builtin(RispBuiltinFunction::Plus) => PLUS_SYM.to_owned(),
             RispFunction::Builtin(RispBuiltinFunction::Minus) => MINUS_SYM.to_owned(),
             RispFunction::Builtin(RispBuiltinFunction::Multiply) => MULTIPLY_SYM.to_owned(),
@@ -211,16 +260,6 @@ impl RispFunction {
 
             RispFunction::Builtin(RispBuiltinFunction::Def) => DEF_SYM.to_owned(),
             RispFunction::Builtin(RispBuiltinFunction::If) => IF_SYM.to_owned(),
-        }
-    }
-}
-
-impl PartialEq for RispFunction {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (RispFunction::Function(_), RispFunction::Function(_)) => true,
-            (RispFunction::Builtin(s), RispFunction::Builtin(o)) => s == o,
-            _ => false,
         }
     }
 }
@@ -456,6 +495,34 @@ mod tests {
                 RispExp::String("true".to_owned()),
                 RispExp::String("false".to_owned())
             ])
+        );
+    }
+
+    #[test]
+    fn fn_works() {
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::Fn,
+                RispToken::LParen,
+                RispToken::Symbol("x".to_owned()),
+                RispToken::RParen,
+                RispToken::LParen,
+                RispToken::Symbol("+".to_owned()),
+                RispToken::Symbol("x".to_owned()),
+                RispToken::Integer(1),
+                RispToken::RParen,
+                RispToken::RParen,
+            ])
+            .unwrap(),
+            RispExp::List(vec![RispExp::Func(RispFunction::Function {
+                params: Box::new(RispExp::List(vec![RispExp::Symbol("x".to_string())])),
+                body: Box::new(RispExp::List(vec![
+                    RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
+                    RispExp::Symbol("x".to_string()),
+                    RispExp::Integer(1),
+                ])),
+            })])
         );
     }
 
