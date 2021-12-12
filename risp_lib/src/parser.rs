@@ -14,6 +14,9 @@ pub fn parse(tokens: &[RispToken]) -> RispResult<RispExp> {
 
 // TODO extra Rparens dont fail
 fn parse_internal<'a>(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
+    if tokens.len() == 0 {
+        return Ok((RispExp::Empty, &[]));
+    }
     let (token, rest) = tokens.split_first().unwrap();
     match &token {
         RispToken::LParen => read_seq(rest),
@@ -59,6 +62,7 @@ fn parse_symbol(str: &str) -> Result<RispExp, RispError> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RispExp {
+    Empty, // Used to signify empty input
     Nil,
     Symbol(String),
     Bool(bool),
@@ -100,6 +104,7 @@ impl Display for RispExp {
                     format!("({})", lstr)
                 }
                 RispExp::Func(f) => format!("f@{}", f),
+                RispExp::Empty => "".to_owned(),
             }
         )
     }

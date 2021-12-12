@@ -1,5 +1,7 @@
 //! This is the repl for risp
 //! readline, support soft returns, eval print loop
+mod risp_lineread_validator;
+
 use risp_lib::environment::RispEnv;
 use risp_lib::eval::eval;
 use risp_lib::parser::parse;
@@ -9,6 +11,8 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
 const REPL_HISTORY_PATH: &str = ".repl_history";
+
+// TODO multiline editing with Validator trait from rustyline
 
 fn main() {
     let env = &mut RispEnv::default();
