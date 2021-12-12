@@ -2,24 +2,20 @@
 //! readline, support soft returns, eval print loop
 mod risp_lineread_validator;
 
+use crate::risp_lineread_validator::RispValidator;
 use risp_lib::environment::RispEnv;
 use risp_lib::eval::eval;
 use risp_lib::parser::parse;
 use risp_lib::tokenizer::tokenize;
 use rustyline;
 use rustyline::error::ReadlineError;
-use rustyline::Editor;
+use rustyline::{Editor, Helper, KeyEvent};
 
 const REPL_HISTORY_PATH: &str = ".repl_history";
 
-// TODO multiline editing with Validator trait from rustyline
-
 fn main() {
     let env = &mut RispEnv::default();
-    let mut rl = rustyline::Editor::<()>::with_config(
-        rustyline::Config::builder().auto_add_history(true).build(),
-    );
-    setup_history(&mut rl);
+    let mut rl = setup_rustyline();
 
     loop {
         let readline = rl.readline("lisp> ");
@@ -34,7 +30,17 @@ fn main() {
     }
 }
 
-fn setup_history(rl: &mut Editor<()>) {
+fn setup_rustyline() -> Editor<RispValidator> {
+    let mut rl = rustyline::Editor::<RispValidator>::with_config(
+        rustyline::Config::builder().auto_add_history(true).build(),
+    );
+    rl.bind_sequence(KeyEvent::)
+    rl.set_helper(Some(RispValidator::new()));
+    setup_history(&mut rl);
+    rl
+}
+
+fn setup_history(rl: &mut Editor<impl Helper>) {
     if let Err(e) = rl.load_history(".repl_history") {
         eprintln!("Error loading repl history: {}", e);
         if let Err(e) = std::fs::File::create(".repl_history") {
@@ -50,7 +56,7 @@ fn ep(input: String, env: &mut RispEnv) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn handle_exit(rl: &mut Editor<()>) {
+fn handle_exit(rl: &mut Editor<impl Helper>) {
     println!("Goodbye!");
     rl.save_history(&REPL_HISTORY_PATH)
         .expect("Error saving history");

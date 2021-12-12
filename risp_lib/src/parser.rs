@@ -126,6 +126,7 @@ pub enum RispBuiltinFunction {
     Xor,
     Or,
     And,
+    // TODO comparison ops, equality
     // TODO def
     // TODO if
     // TODO functions/lambdas
