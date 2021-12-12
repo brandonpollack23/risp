@@ -1,12 +1,15 @@
 use crate::environment::RispEnv;
-use crate::error::{RispError, RispResult};
+use crate::error::{RispError, RispResult, ILLEGAL_TYPE_FOR_ARITHMETIC_OP};
 use crate::parser::{RispBuiltinFunction, RispExp, RispFunction};
+use crate::{number_list_apply, number_list_subtractive_apply};
+
+mod macros;
 
 pub fn eval(exp: RispExp, env: &mut RispEnv) -> RispResult<RispExp> {
     match exp {
         RispExp::List(forms) => eval_list_as_func(forms, env),
-        RispExp::Symbol(s) if env.data.contains_key(&s) => {
-            Ok(env.data.get(&s).map(|x| x.clone()).unwrap())
+        RispExp::Symbol(s) if env.has_interned_var(&s) => {
+            Ok(env.get(&s).map(|x| x.clone()).unwrap())
         }
         _ => Ok(exp),
     }
@@ -80,18 +83,18 @@ pub fn plus(args: &[RispExp]) -> RispResult<RispExp> {
 
 pub fn minus(args: &[RispExp]) -> RispResult<RispExp> {
     return number_list_subtractive_apply!(
-            args,
-            RispExp::Integer(0),
-            std::ops::Sub::sub,
-            Iterator::sum
-        );
+        args,
+        RispExp::Integer(0),
+        std::ops::Sub::sub,
+        Iterator::sum
+    );
 }
 
-pub fn multiply(&self, args: &[RispExp]) -> RispResult<RispExp> {
+pub fn multiply(args: &[RispExp]) -> RispResult<RispExp> {
     number_list_apply!(args, Iterator::product)
 }
 
-pub fn divide(&self, args: &[RispExp]) -> RispResult<RispExp> {
+pub fn divide(args: &[RispExp]) -> RispResult<RispExp> {
     if args.len() < 1 {
         return Err(RispError::ArityMismatch(RispFunction::Builtin(
             RispBuiltinFunction::Divide,
@@ -99,52 +102,52 @@ pub fn divide(&self, args: &[RispExp]) -> RispResult<RispExp> {
     }
 
     number_list_subtractive_apply!(
-            args,
-            RispExp::Integer(0),
-            std::ops::Div::div,
-            Iterator::product
-        )
+        args,
+        RispExp::Integer(0),
+        std::ops::Div::div,
+        Iterator::product
+    )
 }
 
 /// Boolean and all args.  The only false values are nil and false.
-pub fn boolean_and(&self, args: &[RispExp]) -> RispResult<RispExp> {
+pub fn boolean_and(args: &[RispExp]) -> RispResult<RispExp> {
     Ok(RispExp::Bool(
         args.iter()
-            .map(Self::truthiness)
+            .map(truthiness)
             .reduce(|x, y| x && y)
             .unwrap_or(true),
     ))
 }
 
-pub fn boolean_or(&self, args: &[RispExp]) -> RispResult<RispExp> {
+pub fn boolean_or(args: &[RispExp]) -> RispResult<RispExp> {
     Ok(RispExp::Bool(
         args.iter()
-            .map(Self::truthiness)
+            .map(truthiness)
             .reduce(|x, y| x || y)
             .unwrap_or(false),
     ))
 }
 
-pub fn boolean_xor(&self, args: &[RispExp]) -> RispResult<RispExp> {
+pub fn boolean_xor(args: &[RispExp]) -> RispResult<RispExp> {
     Ok(RispExp::Bool(
         args.iter()
-            .map(Self::truthiness)
+            .map(truthiness)
             .reduce(|x, y| x ^ y)
             .unwrap_or(false),
     ))
 }
 
-pub fn boolean_not(&self, args: &[RispExp]) -> RispResult<RispExp> {
+pub fn boolean_not(args: &[RispExp]) -> RispResult<RispExp> {
     if args.len() != 1 {
         return Err(RispError::ArityMismatch(RispFunction::Builtin(
             RispBuiltinFunction::Not,
         )));
     }
-    Ok(RispExp::Bool(!Self::truthiness(args.first().unwrap())))
+    Ok(RispExp::Bool(!truthiness(args.first().unwrap())))
 }
 
-pub fn op_lt(&self, rest: &[RispExp]) -> RispResult<RispExp> {
-    Self::check_arity_is_two_or_less(
+pub fn op_lt(rest: &[RispExp]) -> RispResult<RispExp> {
+    check_arity_is_two_or_less(
         rest,
         RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::LT)),
     )?;
@@ -156,8 +159,8 @@ pub fn op_lt(&self, rest: &[RispExp]) -> RispResult<RispExp> {
     }
 }
 
-pub fn op_lte(&self, rest: &[RispExp]) -> RispResult<RispExp> {
-    Self::check_arity_is_two_or_less(
+pub fn op_lte(rest: &[RispExp]) -> RispResult<RispExp> {
+    check_arity_is_two_or_less(
         rest,
         RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::LTE)),
     )?;
@@ -169,8 +172,8 @@ pub fn op_lte(&self, rest: &[RispExp]) -> RispResult<RispExp> {
     }
 }
 
-pub fn op_gt(&self, rest: &[RispExp]) -> RispResult<RispExp> {
-    Self::check_arity_is_two_or_less(
+pub fn op_gt(rest: &[RispExp]) -> RispResult<RispExp> {
+    check_arity_is_two_or_less(
         rest,
         RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::GT)),
     )?;
@@ -182,8 +185,8 @@ pub fn op_gt(&self, rest: &[RispExp]) -> RispResult<RispExp> {
     }
 }
 
-pub fn op_gte(&self, rest: &[RispExp]) -> RispResult<RispExp> {
-    Self::check_arity_is_two_or_less(
+pub fn op_gte(rest: &[RispExp]) -> RispResult<RispExp> {
+    check_arity_is_two_or_less(
         rest,
         RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::GTE)),
     )?;
@@ -195,8 +198,8 @@ pub fn op_gte(&self, rest: &[RispExp]) -> RispResult<RispExp> {
     }
 }
 
-pub fn op_eq(&self, rest: &[RispExp]) -> RispResult<RispExp> {
-    Self::check_arity_is_two_or_less(
+pub fn op_eq(rest: &[RispExp]) -> RispResult<RispExp> {
+    check_arity_is_two_or_less(
         rest,
         RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::EQ)),
     )?;
@@ -208,6 +211,45 @@ pub fn op_eq(&self, rest: &[RispExp]) -> RispResult<RispExp> {
     }
 }
 
+fn check_arity_is_two_or_less(rest: &[RispExp], error: RispError) -> RispResult<()> {
+    if rest.len() > 2 {
+        return Err(error);
+    }
+    Ok(())
+}
+
+fn truthiness(b: &RispExp) -> bool {
+    match b {
+        RispExp::Nil => false,
+        RispExp::Bool(false) => false,
+        _ => true,
+    }
+}
+fn check_for_illegal_arithmetic_input(args: &[RispExp]) -> RispResult<()> {
+    if args
+        .iter()
+        .any(|arg| !(matches!(arg, RispExp::Integer(_) | RispExp::Float(_))))
+    {
+        return Err(RispError::TypeError(ILLEGAL_TYPE_FOR_ARITHMETIC_OP));
+    }
+
+    Ok(())
+}
+
+fn exp_to_float(arg: &RispExp) -> f64 {
+    match arg {
+        RispExp::Integer(i) => f64::from(*i),
+        RispExp::Float(f) => *f,
+        _ => panic!(),
+    }
+}
+
+fn exp_to_int(arg: &RispExp) -> i32 {
+    match arg {
+        RispExp::Integer(i) => *i,
+        _ => panic!(),
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -928,7 +970,7 @@ mod tests {
         ]);
         assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Nil);
         assert_eq!(
-            env.data.get("captain").unwrap(),
+            env.get("captain").unwrap(),
             &RispExp::String("picard".to_owned())
         );
 
