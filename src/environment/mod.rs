@@ -63,6 +63,15 @@ impl RispEnv {
         ))
     }
 
+    pub fn boolean_xor(&self, args: &[RispExp]) -> RispResult<RispExp> {
+        Ok(RispExp::Bool(
+            args.iter()
+                .map(Self::truthiness)
+                .reduce(|x, y| x ^ y)
+                .unwrap_or(false),
+        ))
+    }
+
     pub fn boolean_not(&self, args: &[RispExp]) -> RispResult<RispExp> {
         if args.len() != 1 {
             return Err(RispError::ArityMismatch(RispFunction::Builtin(

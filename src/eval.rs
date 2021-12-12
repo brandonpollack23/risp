@@ -22,6 +22,7 @@ fn eval_func(forms: &[RispExp], env: &mut RispEnv) -> RispResult<RispExp> {
             RispFunction::Builtin(RispBuiltinFunction::Multiply) => env.multiply(rest),
             RispFunction::Builtin(RispBuiltinFunction::Divide) => env.divide(rest),
             RispFunction::Builtin(RispBuiltinFunction::And) => env.boolean_and(rest),
+            RispFunction::Builtin(RispBuiltinFunction::Xor) => env.boolean_xor(rest),
             RispFunction::Builtin(RispBuiltinFunction::Or) => env.boolean_or(rest),
             RispFunction::Builtin(RispBuiltinFunction::Not) => env.boolean_not(rest),
             _ => panic!("NOT IMPLEMENTED YET!"),
@@ -619,5 +620,96 @@ mod tests {
         assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
     }
 
-    // TODO NOW xor
+    #[test]
+    fn xor_2_or_more() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
+            RispExp::Bool(true),
+            RispExp::Bool(true),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
+            RispExp::Bool(false),
+            RispExp::Bool(false),
+            RispExp::Bool(true),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
+            RispExp::Bool(true),
+            RispExp::Bool(false),
+            RispExp::Bool(true),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
+            RispExp::Bool(true),
+            RispExp::Bool(true),
+            RispExp::Bool(true),
+            RispExp::Bool(true),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
+    }
+
+    #[test]
+    fn xor1() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
+            RispExp::Bool(true),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
+            RispExp::Bool(false),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
+    }
+
+    #[test]
+    fn xor0() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![RispExp::Func(RispFunction::Builtin(
+            RispBuiltinFunction::Xor,
+        ))]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
+    }
+
+    #[test]
+    fn xor_non_bool() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
+            RispExp::Symbol("Locutus".to_string()),
+            RispExp::Bool(false),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
+            RispExp::Nil,
+            RispExp::Bool(false),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
+            RispExp::Integer(0),
+            RispExp::Bool(true),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(false));
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Xor)),
+            RispExp::Integer(42),
+            RispExp::Bool(false),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Bool(true));
+    }
 }
