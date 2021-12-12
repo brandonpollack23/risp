@@ -1,5 +1,5 @@
 use crate::error::{RispError, RispResult};
-use crate::symbols_constants::{EQ_SYM, GTE_SYM, GT_SYM, LTE_SYM, LT_SYM, NIL_SYM};
+use crate::symbols_constants::{DEF_SYM, EQ_SYM, GTE_SYM, GT_SYM, LTE_SYM, LT_SYM, NIL_SYM};
 use regex::Regex;
 use std::str::FromStr;
 
@@ -48,6 +48,7 @@ impl Tokenizer {
     fn tokenize_element(&self, elem: &str) -> RispResult<RispToken> {
         match elem {
             NIL_SYM => Ok(RispToken::Nil),
+            DEF_SYM => Ok(RispToken::Def),
             c if self.char_matcher.is_match(c) => Ok(RispToken::Char(c.chars().nth(0).unwrap())),
             b if self.bool_matcher.is_match(b) => Ok(RispToken::Bool(bool::from_str(b)?)),
             int if self.int_matcher.is_match(int) => {
@@ -58,9 +59,10 @@ impl Tokenizer {
                     .expect(&format!("Unable to parse {} as f64", float)),
             )),
             sym if self.symbol_matcher.is_match(sym) => Ok(RispToken::Symbol(sym.to_owned())),
-            string_literal if self.string_literal_matcher.is_match(string_literal) => {
-                Ok(RispToken::StringLiteral(string_literal.to_owned()))
-            }
+            string_literal if self.string_literal_matcher.is_match(string_literal) => Ok(
+                // Cut out the " chars
+                RispToken::StringLiteral(string_literal[1..string_literal.len() - 1].to_owned()),
+            ),
             o if self.comparison_op_matcher.is_match(o) => Ok(Self::tokenize_operator(o)),
             other => Err(RispError::UnrecognizedToken(other.to_string())),
         }
@@ -83,13 +85,18 @@ pub enum RispToken {
     Nil,
     LParen,
     RParen,
+
     Symbol(String),
     StringLiteral(String),
+
     Bool(bool),
     Float(f64),
     Integer(i32),
     Char(char),
+
     Comparison(ComparisonOp),
+
+    Def,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -218,6 +225,20 @@ mod tests {
                 RispToken::Comparison(ComparisonOp::LTE),
                 RispToken::Comparison(ComparisonOp::GT),
                 RispToken::Comparison(ComparisonOp::GTE),
+                RispToken::RParen,
+            ]
+        );
+    }
+
+    #[test]
+    fn recognizes_def() {
+        assert_eq!(
+            tokenize(r#"(def test "blarg")"#).unwrap(),
+            vec![
+                RispToken::LParen,
+                RispToken::Def,
+                RispToken::Symbol("test".to_owned()),
+                RispToken::StringLiteral("blarg".to_owned()),
                 RispToken::RParen,
             ]
         );

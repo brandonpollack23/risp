@@ -5,11 +5,9 @@ use crate::parser::{RispBuiltinFunction, RispExp, RispFunction};
 pub fn eval(exp: RispExp, env: &mut RispEnv) -> RispResult<RispExp> {
     match exp {
         RispExp::List(forms) => eval_list_as_func(forms, env),
-        RispExp::Symbol(s) => env
-            .data
-            .get(&s)
-            .ok_or(RispError::UnexpectedSymbol(s))
-            .map(|x| x.clone()),
+        RispExp::Symbol(s) if env.data.contains_key(&s) => {
+            Ok(env.data.get(&s).map(|x| x.clone()).unwrap())
+        }
         _ => Ok(exp),
     }
 }
@@ -41,6 +39,18 @@ fn eval_list_as_func(mut forms: Vec<RispExp>, env: &mut RispEnv) -> RispResult<R
             RispFunction::Builtin(RispBuiltinFunction::GT) => env.op_gt(&rest),
             RispFunction::Builtin(RispBuiltinFunction::GTE) => env.op_gte(&rest),
             RispFunction::Builtin(RispBuiltinFunction::EQ) => env.op_eq(&rest),
+
+            RispFunction::Builtin(RispBuiltinFunction::Def) => {
+                if rest.len() != 2 {
+                    return Err(RispError::ArityMismatch(f.clone()));
+                }
+                if let RispExp::Symbol(name) = rest.get(0).unwrap() {
+                    let expr = rest.get(1).unwrap();
+                    return env.def(name, expr);
+                }
+                return Err(RispError::MalformedDefExpression);
+            }
+
             RispFunction::Function(f) => f(&rest),
         },
         _ => Err(RispError::FirstFormMustBeFunction(first.clone())),
@@ -754,5 +764,39 @@ mod tests {
             eval(exp, &mut env).unwrap(),
             RispExp::Integer(42 + 42 + 100 + 37)
         );
+    }
+
+    #[test]
+    fn def_works() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Def)),
+            RispExp::Symbol("captain".to_owned()),
+            RispExp::String("picard".to_owned()),
+        ]);
+        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Nil);
+        assert_eq!(
+            env.data.get("captain").unwrap(),
+            &RispExp::String("picard".to_owned())
+        );
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Def)),
+            RispExp::Symbol("one".to_owned()),
+            RispExp::Integer(1),
+        ]);
+        eval(exp, &mut env).unwrap();
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Def)),
+            RispExp::Symbol("two".to_owned()),
+            RispExp::Integer(2),
+        ]);
+        eval(exp, &mut env).unwrap();
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
+            RispExp::Symbol("one".to_owned()),
+            RispExp::Symbol("two".to_owned()),
+        ]);
+        assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(3));
     }
 }

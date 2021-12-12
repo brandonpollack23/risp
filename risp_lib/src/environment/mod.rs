@@ -11,6 +11,11 @@ pub struct RispEnv {
 }
 
 impl RispEnv {
+    pub fn def(&mut self, name: &String, exp: &RispExp) -> RispResult<RispExp> {
+        self.data.insert(name.clone(), exp.clone());
+        Ok(RispExp::Nil)
+    }
+
     // TODO on math functions handle overflow/cases
     pub fn plus(&self, args: &[RispExp]) -> RispResult<RispExp> {
         number_list_apply!(args, Iterator::sum)

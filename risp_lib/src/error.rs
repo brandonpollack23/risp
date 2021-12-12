@@ -18,6 +18,9 @@ pub enum RispError {
     #[error("The symbol {0} is unrecognized, did you remember to define it?")]
     UnexpectedSymbol(String),
 
+    #[error("Def must be of the form (def symbol expr)")]
+    MalformedDefExpression,
+
     #[error("Primitive type mismatch: {0}")]
     TypeError(&'static str),
 

@@ -3,9 +3,10 @@ use std::fmt::{Debug, Display, Formatter};
 use std::ptr::addr_of;
 
 use crate::error::{RispError, RispResult};
+use crate::parser::RispFunction::Builtin;
 use crate::symbols_constants::{
-    AND_SYM, DIV_SYM, EQ_SYM, GTE_SYM, GT_SYM, LTE_SYM, LT_SYM, MINUS_SYM, MULTIPLY_SYM, NOT_SYM,
-    OR_SYM, PLUS_SYM, XOR_SYM,
+    AND_SYM, DEF_SYM, DIV_SYM, EQ_SYM, GTE_SYM, GT_SYM, LTE_SYM, LT_SYM, MINUS_SYM, MULTIPLY_SYM,
+    NOT_SYM, OR_SYM, PLUS_SYM, XOR_SYM,
 };
 use crate::tokenizer::{ComparisonOp, RispToken};
 
@@ -46,14 +47,19 @@ fn read_seq(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
 
 fn parse_atom(token: &RispToken) -> RispResult<RispExp> {
     match token {
+        RispToken::Nil => Ok(RispExp::Nil),
         RispToken::Char(c) => Ok(RispExp::Char(*c)),
         RispToken::Bool(b) => Ok(RispExp::Bool(*b)),
         RispToken::Integer(i) => Ok(RispExp::Integer(*i)),
         RispToken::Float(f) => Ok(RispExp::Float(*f)),
+
         RispToken::Symbol(str) => parse_symbol(str),
         RispToken::StringLiteral(str) => Ok(RispExp::String(str.to_owned())),
+
         RispToken::Comparison(cmp) => Ok(cmp.into()),
-        RispToken::Nil => Ok(RispExp::Nil),
+
+        RispToken::Def => Ok(RispExp::Func(Builtin(RispBuiltinFunction::Def))),
+
         t @ (RispToken::LParen | RispToken::RParen) => Err(RispError::UnexpectedToken(t.clone())),
     }
 }
@@ -166,7 +172,8 @@ pub enum RispBuiltinFunction {
     GT,
     GTE,
     EQ,
-    // TODO def
+
+    Def,
     // TODO if
     // TODO functions/lambdas
 
@@ -200,6 +207,8 @@ impl RispFunction {
             RispFunction::Builtin(RispBuiltinFunction::GT) => GT_SYM.to_owned(),
             RispFunction::Builtin(RispBuiltinFunction::GTE) => GTE_SYM.to_owned(),
             RispFunction::Builtin(RispBuiltinFunction::EQ) => EQ_SYM.to_owned(),
+
+            RispFunction::Builtin(RispBuiltinFunction::Def) => DEF_SYM.to_owned(),
         }
     }
 }
@@ -230,6 +239,7 @@ impl From<&str> for RispFunction {
             GT_SYM => RispFunction::Builtin(RispBuiltinFunction::GT),
             GTE_SYM => RispFunction::Builtin(RispBuiltinFunction::GTE),
             EQ_SYM => RispFunction::Builtin(RispBuiltinFunction::EQ),
+            DEF_SYM => RispFunction::Builtin(RispBuiltinFunction::Def),
             _ => panic!("This is not a valid built in!"),
         }
     }
@@ -402,6 +412,25 @@ mod tests {
                 RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Or)),
                 RispExp::Integer(1),
                 RispExp::Integer(2)
+            ])
+        );
+    }
+
+    #[test]
+    fn def_works() {
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::Def,
+                RispToken::Symbol("lukesfather".to_owned()),
+                RispToken::StringLiteral("darthvader".to_owned()),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Def)),
+                RispExp::Symbol("lukesfather".to_owned()),
+                RispExp::String("darthvader".to_owned())
             ])
         );
     }
