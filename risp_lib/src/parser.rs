@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::ptr::addr_of;
 
 use crate::error::{RispError, RispResult};
@@ -68,6 +68,38 @@ pub enum RispExp {
     Func(RispFunction),
 }
 
+impl Display for RispExp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                RispExp::Nil => "nil".to_owned(),
+                RispExp::Symbol(s) => format!("'{}", s),
+                RispExp::Bool(b) =>
+                    if *b {
+                        "#t".to_owned()
+                    } else {
+                        "#f".to_owned()
+                    },
+                RispExp::Integer(i) => i.to_string(),
+                RispExp::Float(f) => f.to_string(),
+                RispExp::Char(c) => c.to_string(),
+                RispExp::String(s) => s.clone(),
+                RispExp::List(l) => {
+                    let lstr = l
+                        .iter()
+                        .map(|x| format!("{}", x))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("({})", lstr)
+                }
+                RispExp::Func(f) => format!("f@{}", f),
+            }
+        )
+    }
+}
+
 #[derive(Clone)]
 pub enum RispFunction {
     Function(fn(&[RispExp]) -> RispResult<RispExp>),
@@ -97,6 +129,20 @@ impl RispFunction {
         match str {
             "+" | "-" | "*" | "/" | "xor" | "or" | "and" | "not" => true,
             _ => false,
+        }
+    }
+
+    fn to_string(&self) -> String {
+        match self {
+            RispFunction::Function(f) => format!("#f@{:?}", addr_of!(f)),
+            RispFunction::Builtin(RispBuiltinFunction::Plus) => "+".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Minus) => "-".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Multiply) => "*".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Divide) => "/".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Not) => "not".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Xor) => "xor".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Or) => "or".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::And) => "and".to_string(),
         }
     }
 }
@@ -129,21 +175,16 @@ impl From<&str> for RispFunction {
 
 impl Debug for RispFunction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let out = match self {
-            RispFunction::Function(f) => format!("#f@{:?}", addr_of!(f)),
-            RispFunction::Builtin(RispBuiltinFunction::Plus) => "+".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Minus) => "-".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Multiply) => "*".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Divide) => "/".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Not) => "not".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Xor) => "xor".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Or) => "or".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::And) => "and".to_string(),
-        };
-
-        f.write_str(&out)
+        f.write_str(&self.to_string())
     }
 }
+
+impl Display for RispFunction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
