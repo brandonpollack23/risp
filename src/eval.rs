@@ -20,6 +20,7 @@ fn eval_func(forms: &[RispExp], env: &mut RispEnv) -> RispResult<RispExp> {
             RispFunction::Builtin(RispBuiltinFunction::Plus) => env.plus(rest),
             RispFunction::Builtin(RispBuiltinFunction::Minus) => env.minus(rest),
             RispFunction::Builtin(RispBuiltinFunction::Multiply) => env.multiply(rest),
+            RispFunction::Builtin(RispBuiltinFunction::Divide) => env.divide(rest),
             _ => panic!("NOT IMPLEMENTED YET!"),
         },
         _ => panic!("NOT IMPLEMENTED YET!"),
@@ -189,6 +190,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn multiply_2_or_more() {
         let mut env = RispEnv::default();
         let exp = RispExp::List(vec![
@@ -205,7 +207,10 @@ mod tests {
             RispExp::Integer(42),
             RispExp::Integer(42),
         ]);
-        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37 * 3 * 42));
+        assert_eq!(
+            eval(&exp, &mut env).unwrap(),
+            RispExp::Integer(37 * 42 * 42 * 42)
+        );
 
         let exp = RispExp::List(vec![
             RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Multiply)),
@@ -265,7 +270,89 @@ mod tests {
         );
     }
 
-    // TODO NOW div
+    #[test]
+    fn divide_2_or_more() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
+            RispExp::Integer(100),
+            RispExp::Integer(42),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(100 / 42));
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
+            RispExp::Integer(1000),
+            RispExp::Integer(10),
+            RispExp::Integer(10),
+            RispExp::Integer(5),
+        ]);
+        assert_eq!(
+            eval(&exp, &mut env).unwrap(),
+            RispExp::Integer(1000 / 10 / 10 / 5)
+        );
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
+            RispExp::Integer(100),
+            RispExp::Integer(-50),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(100 / -50));
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
+            RispExp::Integer(-100),
+            RispExp::Integer(50),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(-100 / 50));
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
+            RispExp::Float(-1000f64),
+            RispExp::Integer(500),
+        ]);
+        assert_eq!(
+            eval(&exp, &mut env).unwrap(),
+            RispExp::Float(-1000f64 / 500f64)
+        );
+    }
+
+    #[test]
+    fn divide1() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
+            RispExp::Integer(37),
+        ]);
+        assert_eq!(eval(&exp, &mut env).unwrap(), RispExp::Integer(37));
+    }
+
+    #[test]
+    fn divide0() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![RispExp::Func(RispFunction::Builtin(
+            RispBuiltinFunction::Divide,
+        ))]);
+        assert_eq!(
+            eval(&exp, &mut env).unwrap_err(),
+            RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::Divide))
+        );
+    }
+
+    #[test]
+    fn divide_non_number() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Minus)),
+            RispExp::Symbol("Locutus".to_string()),
+            RispExp::Integer(42),
+        ]);
+        assert_eq!(
+            eval(&exp, &mut env).unwrap_err(),
+            RispError::ArithmeticError(ILLEGAL_TYPE_FOR_ARITHMETIC_OP)
+        );
+    }
+
     // TODO NOW and
     // TODO NOW or
     // TODO NOW not

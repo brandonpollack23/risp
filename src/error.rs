@@ -1,3 +1,4 @@
+use crate::parser::RispFunction;
 use crate::tokenizer::RispToken;
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::ParseBoolError;
@@ -21,6 +22,9 @@ pub enum RispError {
     ParseFloatError(#[from] ParseFloatError),
     #[error("Error parsing bool: {0}")]
     ParseBoolError(#[from] ParseBoolError),
+
+    #[error("Arity mismatch caused by: {0:?}")]
+    ArityMismatch(RispFunction),
 
     #[error("The previous LParen was unterminated")]
     UnterminatedList,
