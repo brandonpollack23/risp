@@ -11,6 +11,7 @@ pub struct Tokenizer {
     int_matcher: Regex,
     float_matcher: Regex,
     symbol_matcher: Regex,
+    string_literal_matcher: Regex,
 }
 
 // TODO quote tokens and reader macros for '
@@ -21,6 +22,7 @@ impl Tokenizer {
             int_matcher: Regex::new(r#"^[-+]?[0-9][0-9_]*$"#).unwrap(),
             float_matcher: Regex::new(r#"^[-+]?[0-9]*([.][0-9]+|f|[.][0-9]+f)$"#).unwrap(),
             symbol_matcher: Regex::new(r#"^([A-Za-z_]+[A-Za-z0-9_]*|\+|-|\*|/)$"#).unwrap(),
+            string_literal_matcher: Regex::new(r#"^".*"$"#).unwrap(),
         }
     }
 
@@ -47,7 +49,10 @@ impl Tokenizer {
                 f64::from_str(&float.replace("f", ""))
                     .expect(&format!("Unable to parse {} as f64", float)),
             )),
-            sym if self.symbol_matcher.is_match(sym) => Ok(RispToken::String(sym.to_string())),
+            sym if self.symbol_matcher.is_match(sym) => Ok(RispToken::Symbol(sym.to_owned())),
+            string_literal if self.string_literal_matcher.is_match(string_literal) => {
+                Ok(RispToken::StringLiteral(string_literal.to_owned()))
+            }
             other => Err(RispError::UnrecognizedToken(other.to_string())),
         }
     }
@@ -57,7 +62,8 @@ impl Tokenizer {
 pub enum RispToken {
     LParen,
     RParen,
-    String(String),
+    Symbol(String),
+    StringLiteral(String),
     Bool(bool),
     Float(f64),
     Integer(i32),
@@ -83,7 +89,7 @@ mod tests {
     fn operator_assertion(op: &str) {
         assert_eq!(
             tokenize(op).unwrap(),
-            vec![RispToken::String(op.to_string())]
+            vec![RispToken::Symbol(op.to_string())]
         );
     }
 
@@ -91,7 +97,7 @@ mod tests {
     fn recognizes_strings_as_symbols() {
         assert_eq!(
             tokenize("engage").unwrap(),
-            vec![RispToken::String("engage".to_string())]
+            vec![RispToken::Symbol("engage".to_string())]
         )
     }
 

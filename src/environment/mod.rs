@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug, Default)]
 pub struct RispEnv {
-    data: HashMap<String, RispExp>,
+    pub data: HashMap<String, RispExp>,
 }
 
 impl RispEnv {

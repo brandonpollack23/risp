@@ -1,4 +1,4 @@
-use crate::parser::RispFunction;
+use crate::parser::{RispExp, RispFunction};
 use crate::tokenizer::RispToken;
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::ParseBoolError;
@@ -12,6 +12,11 @@ pub enum RispError {
     UnrecognizedToken(String),
     #[error("The token {0:?} was not expected here")]
     UnexpectedToken(RispToken),
+
+    #[error("The expression {0:?} was not expected here: {1}")]
+    UnexpectedExpr(RispExp, String),
+    #[error("The symbol {0} is unrecognized, did you remember to define it?")]
+    UnexpectedSymbol(String),
 
     #[error("Primitive type mismatch: {0}")]
     TypeError(&'static str),
@@ -29,8 +34,8 @@ pub enum RispError {
     #[error("The previous LParen was unterminated")]
     UnterminatedList,
 
-    #[error("The form must begin with an executable function to be evaluated")]
-    FirstListElementIsNotExecutable,
+    #[error("{0:?} is not an evaluable function")]
+    FirstFormMustBeFunction(RispExp),
 }
 
 pub const ILLEGAL_TYPE_FOR_ARITHMETIC_OP: &str =
