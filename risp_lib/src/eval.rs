@@ -30,10 +30,17 @@ fn eval_list_as_func(mut forms: Vec<RispExp>, env: &mut RispEnv) -> RispResult<R
             RispFunction::Builtin(RispBuiltinFunction::Minus) => env.minus(&rest),
             RispFunction::Builtin(RispBuiltinFunction::Multiply) => env.multiply(&rest),
             RispFunction::Builtin(RispBuiltinFunction::Divide) => env.divide(&rest),
+
             RispFunction::Builtin(RispBuiltinFunction::And) => env.boolean_and(&rest),
             RispFunction::Builtin(RispBuiltinFunction::Xor) => env.boolean_xor(&rest),
             RispFunction::Builtin(RispBuiltinFunction::Or) => env.boolean_or(&rest),
             RispFunction::Builtin(RispBuiltinFunction::Not) => env.boolean_not(&rest),
+
+            RispFunction::Builtin(RispBuiltinFunction::LT) => env.op_lt(&rest),
+            RispFunction::Builtin(RispBuiltinFunction::LTE) => env.op_lte(&rest),
+            RispFunction::Builtin(RispBuiltinFunction::GT) => env.op_gt(&rest),
+            RispFunction::Builtin(RispBuiltinFunction::GTE) => env.op_gte(&rest),
+            RispFunction::Builtin(RispBuiltinFunction::EQ) => env.op_eq(&rest),
             RispFunction::Function(f) => f(&rest),
         },
         _ => Err(RispError::FirstFormMustBeFunction(first.clone())),

@@ -81,6 +81,78 @@ impl RispEnv {
         Ok(RispExp::Bool(!Self::truthiness(args.first().unwrap())))
     }
 
+    pub fn op_lt(&self, rest: &[RispExp]) -> RispResult<RispExp> {
+        Self::check_arity_is_two_or_less(
+            rest,
+            RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::LT)),
+        )?;
+        if rest.len() == 1 {
+            return Ok(RispExp::Bool(true));
+        }
+        match (rest.get(0).unwrap(), rest.get(1).unwrap()) {
+            (a, b) => Ok(RispExp::Bool(a < b)),
+        }
+    }
+
+    pub fn op_lte(&self, rest: &[RispExp]) -> RispResult<RispExp> {
+        Self::check_arity_is_two_or_less(
+            rest,
+            RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::LTE)),
+        )?;
+        if rest.len() == 1 {
+            return Ok(RispExp::Bool(true));
+        }
+        match (rest.get(0).unwrap(), rest.get(1).unwrap()) {
+            (a, b) => Ok(RispExp::Bool(a <= b)),
+        }
+    }
+
+    pub fn op_gt(&self, rest: &[RispExp]) -> RispResult<RispExp> {
+        Self::check_arity_is_two_or_less(
+            rest,
+            RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::GT)),
+        )?;
+        if rest.len() == 1 {
+            return Ok(RispExp::Bool(true));
+        }
+        match (rest.get(0).unwrap(), rest.get(1).unwrap()) {
+            (a, b) => Ok(RispExp::Bool(a > b)),
+        }
+    }
+
+    pub fn op_gte(&self, rest: &[RispExp]) -> RispResult<RispExp> {
+        Self::check_arity_is_two_or_less(
+            rest,
+            RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::GTE)),
+        )?;
+        if rest.len() == 1 {
+            return Ok(RispExp::Bool(true));
+        }
+        match (rest.get(0).unwrap(), rest.get(1).unwrap()) {
+            (a, b) => Ok(RispExp::Bool(a >= b)),
+        }
+    }
+
+    pub fn op_eq(&self, rest: &[RispExp]) -> RispResult<RispExp> {
+        Self::check_arity_is_two_or_less(
+            rest,
+            RispError::ArityMismatch(RispFunction::Builtin(RispBuiltinFunction::EQ)),
+        )?;
+        if rest.len() == 1 {
+            return Ok(RispExp::Bool(true));
+        }
+        match (rest.get(0).unwrap(), rest.get(1).unwrap()) {
+            (a, b) => Ok(RispExp::Bool(a == b)),
+        }
+    }
+
+    fn check_arity_is_two_or_less(rest: &[RispExp], error: RispError) -> RispResult<()> {
+        if rest.len() > 2 {
+            return Err(error);
+        }
+        Ok(())
+    }
+
     fn truthiness(b: &RispExp) -> bool {
         match b {
             RispExp::Nil => false,

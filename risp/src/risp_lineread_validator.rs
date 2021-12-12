@@ -1,4 +1,3 @@
-use rustyline::validate::ValidationResult::Valid;
 use rustyline::validate::{
     MatchingBracketValidator, ValidationContext, ValidationResult, Validator,
 };

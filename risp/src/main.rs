@@ -9,7 +9,7 @@ use risp_lib::parser::parse;
 use risp_lib::tokenizer::tokenize;
 use rustyline;
 use rustyline::error::ReadlineError;
-use rustyline::{Editor, Helper, KeyEvent};
+use rustyline::{Editor, Helper};
 
 const REPL_HISTORY_PATH: &str = ".repl_history";
 
@@ -34,7 +34,6 @@ fn setup_rustyline() -> Editor<RispValidator> {
     let mut rl = rustyline::Editor::<RispValidator>::with_config(
         rustyline::Config::builder().auto_add_history(true).build(),
     );
-    rl.bind_sequence(KeyEvent::)
     rl.set_helper(Some(RispValidator::new()));
     setup_history(&mut rl);
     rl

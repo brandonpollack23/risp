@@ -1,8 +1,13 @@
+use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::ptr::addr_of;
 
 use crate::error::{RispError, RispResult};
-use crate::tokenizer::RispToken;
+use crate::symbols_constants::{
+    AND_SYM, DIV_SYM, EQ_SYM, GTE_SYM, GT_SYM, LTE_SYM, LT_SYM, MINUS_SYM, MULTIPLY_SYM, NOT_SYM,
+    OR_SYM, PLUS_SYM, XOR_SYM,
+};
+use crate::tokenizer::{ComparisonOp, RispToken};
 
 pub fn parse(tokens: &[RispToken]) -> RispResult<RispExp> {
     let result = parse_internal(tokens)?;
@@ -47,6 +52,7 @@ fn parse_atom(token: &RispToken) -> RispResult<RispExp> {
         RispToken::Float(f) => Ok(RispExp::Float(*f)),
         RispToken::Symbol(str) => parse_symbol(str),
         RispToken::StringLiteral(str) => Ok(RispExp::String(str.to_owned())),
+        RispToken::Comparison(cmp) => Ok(cmp.into()),
         RispToken::Nil => Ok(RispExp::Nil),
         t @ (RispToken::LParen | RispToken::RParen) => Err(RispError::UnexpectedToken(t.clone())),
     }
@@ -74,6 +80,30 @@ pub enum RispExp {
     List(Vec<RispExp>),
 
     Func(RispFunction),
+}
+
+impl From<&ComparisonOp> for RispExp {
+    fn from(cmp: &ComparisonOp) -> Self {
+        match cmp {
+            ComparisonOp::GT => RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::GT)),
+            ComparisonOp::GTE => RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::GTE)),
+            ComparisonOp::LT => RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::LT)),
+            ComparisonOp::LTE => RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::LTE)),
+            ComparisonOp::EQ => RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::EQ)),
+        }
+    }
+}
+
+impl PartialOrd for RispExp {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (RispExp::Integer(a), RispExp::Integer(b)) => a.partial_cmp(b),
+            (RispExp::Integer(a), RispExp::Float(b)) => f64::from(*a).partial_cmp(b),
+            (RispExp::Float(a), RispExp::Integer(b)) => a.partial_cmp(&f64::from(*b)),
+            (RispExp::Float(a), RispExp::Float(b)) => a.partial_cmp(b),
+            _ => None,
+        }
+    }
 }
 
 impl Display for RispExp {
@@ -117,15 +147,24 @@ pub enum RispFunction {
 
 #[derive(Clone, PartialEq)]
 pub enum RispBuiltinFunction {
+    // Math
     Plus,
     Minus,
     Multiply,
     Divide,
+
+    // Boolean
     Not,
     Xor,
     Or,
     And,
-    // TODO comparison ops, equality
+
+    // Comparison
+    LT,
+    LTE,
+    GT,
+    GTE,
+    EQ,
     // TODO def
     // TODO if
     // TODO functions/lambdas
@@ -137,7 +176,8 @@ pub enum RispBuiltinFunction {
 impl RispFunction {
     fn is_builtin(str: &str) -> bool {
         match str {
-            "+" | "-" | "*" | "/" | "xor" | "or" | "and" | "not" => true,
+            PLUS_SYM | MINUS_SYM | MULTIPLY_SYM | DIV_SYM | XOR_SYM | OR_SYM | AND_SYM
+            | NOT_SYM => true,
             _ => false,
         }
     }
@@ -145,14 +185,21 @@ impl RispFunction {
     fn to_string(&self) -> String {
         match self {
             RispFunction::Function(f) => format!("#f@{:?}", addr_of!(f)),
-            RispFunction::Builtin(RispBuiltinFunction::Plus) => "+".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Minus) => "-".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Multiply) => "*".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Divide) => "/".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Not) => "not".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Xor) => "xor".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::Or) => "or".to_string(),
-            RispFunction::Builtin(RispBuiltinFunction::And) => "and".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Plus) => PLUS_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::Minus) => MINUS_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::Multiply) => MULTIPLY_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::Divide) => DIV_SYM.to_owned(),
+
+            RispFunction::Builtin(RispBuiltinFunction::Not) => NOT_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::Xor) => XOR_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::Or) => OR_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::And) => AND_SYM.to_owned(),
+
+            RispFunction::Builtin(RispBuiltinFunction::LT) => LT_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::LTE) => LTE_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::GT) => GT_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::GTE) => GTE_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::EQ) => EQ_SYM.to_owned(),
         }
     }
 }
@@ -170,14 +217,19 @@ impl PartialEq for RispFunction {
 impl From<&str> for RispFunction {
     fn from(str: &str) -> Self {
         match str {
-            "+" => RispFunction::Builtin(RispBuiltinFunction::Plus),
-            "-" => RispFunction::Builtin(RispBuiltinFunction::Minus),
-            "*" => RispFunction::Builtin(RispBuiltinFunction::Multiply),
-            "/" => RispFunction::Builtin(RispBuiltinFunction::Divide),
-            "not" => RispFunction::Builtin(RispBuiltinFunction::Not),
-            "xor" => RispFunction::Builtin(RispBuiltinFunction::Xor),
-            "or" => RispFunction::Builtin(RispBuiltinFunction::Or),
-            "and" => RispFunction::Builtin(RispBuiltinFunction::And),
+            PLUS_SYM => RispFunction::Builtin(RispBuiltinFunction::Plus),
+            MINUS_SYM => RispFunction::Builtin(RispBuiltinFunction::Minus),
+            MULTIPLY_SYM => RispFunction::Builtin(RispBuiltinFunction::Multiply),
+            DIV_SYM => RispFunction::Builtin(RispBuiltinFunction::Divide),
+            NOT_SYM => RispFunction::Builtin(RispBuiltinFunction::Not),
+            XOR_SYM => RispFunction::Builtin(RispBuiltinFunction::Xor),
+            OR_SYM => RispFunction::Builtin(RispBuiltinFunction::Or),
+            AND_SYM => RispFunction::Builtin(RispBuiltinFunction::And),
+            LT_SYM => RispFunction::Builtin(RispBuiltinFunction::LT),
+            LTE_SYM => RispFunction::Builtin(RispBuiltinFunction::LTE),
+            GT_SYM => RispFunction::Builtin(RispBuiltinFunction::GT),
+            GTE_SYM => RispFunction::Builtin(RispBuiltinFunction::GTE),
+            EQ_SYM => RispFunction::Builtin(RispBuiltinFunction::EQ),
             _ => panic!("This is not a valid built in!"),
         }
     }

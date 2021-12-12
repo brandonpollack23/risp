@@ -1,4 +1,5 @@
 use crate::error::{RispError, RispResult};
+use crate::symbols_constants::{EQ_SYM, GTE_SYM, GT_SYM, LTE_SYM, LT_SYM, NIL_SYM};
 use regex::Regex;
 use std::str::FromStr;
 
@@ -13,9 +14,10 @@ struct Tokenizer {
     float_matcher: Regex,
     symbol_matcher: Regex,
     string_literal_matcher: Regex,
+    comparison_op_matcher: Regex,
 }
 
-// TODO quote tokens and reader macros for '
+// TODO quote tokens and reader macros for ' (quote), !=
 impl Tokenizer {
     fn new() -> Tokenizer {
         Tokenizer {
@@ -25,6 +27,7 @@ impl Tokenizer {
             float_matcher: Regex::new(r#"^[-+]?[0-9]*([.][0-9]+|f|[.][0-9]+f)$"#).unwrap(),
             symbol_matcher: Regex::new(r#"^([A-Za-z_]+[A-Za-z0-9_]*|\+|-|\*|/)$"#).unwrap(),
             string_literal_matcher: Regex::new(r#"^".*"$"#).unwrap(),
+            comparison_op_matcher: Regex::new(r#"(<|>|<=|>=|=)"#).unwrap(),
         }
     }
 
@@ -44,7 +47,7 @@ impl Tokenizer {
 
     fn tokenize_element(&self, elem: &str) -> RispResult<RispToken> {
         match elem {
-            "nil" => Ok(RispToken::Nil),
+            NIL_SYM => Ok(RispToken::Nil),
             c if self.char_matcher.is_match(c) => Ok(RispToken::Char(c.chars().nth(0).unwrap())),
             b if self.bool_matcher.is_match(b) => Ok(RispToken::Bool(bool::from_str(b)?)),
             int if self.int_matcher.is_match(int) => {
@@ -58,7 +61,19 @@ impl Tokenizer {
             string_literal if self.string_literal_matcher.is_match(string_literal) => {
                 Ok(RispToken::StringLiteral(string_literal.to_owned()))
             }
+            o if self.comparison_op_matcher.is_match(o) => Ok(Self::tokenize_operator(o)),
             other => Err(RispError::UnrecognizedToken(other.to_string())),
+        }
+    }
+
+    fn tokenize_operator(o: &str) -> RispToken {
+        match o {
+            LT_SYM => RispToken::Comparison(ComparisonOp::LT),
+            LTE_SYM => RispToken::Comparison(ComparisonOp::LTE),
+            GT_SYM => RispToken::Comparison(ComparisonOp::GT),
+            GTE_SYM => RispToken::Comparison(ComparisonOp::GTE),
+            EQ_SYM => RispToken::Comparison(ComparisonOp::EQ),
+            _ => panic!(""),
         }
     }
 }
@@ -74,6 +89,16 @@ pub enum RispToken {
     Float(f64),
     Integer(i32),
     Char(char),
+    Comparison(ComparisonOp),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ComparisonOp {
+    GT,
+    GTE,
+    LT,
+    LTE,
+    EQ,
 }
 
 #[cfg(test)]
@@ -81,7 +106,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::error::RispError;
-    use crate::tokenizer::{tokenize, RispToken};
+    use crate::tokenizer::{tokenize, ComparisonOp, RispToken};
 
     #[test]
     fn recognizes_operators_as_symbols() {
@@ -178,6 +203,22 @@ mod tests {
                 RispToken::Integer(2),
                 RispToken::Integer(3),
                 RispToken::RParen
+            ]
+        );
+    }
+
+    #[test]
+    fn recognizes_comparison() {
+        assert_eq!(
+            tokenize("(= < <= > >=)").unwrap(),
+            vec![
+                RispToken::LParen,
+                RispToken::Comparison(ComparisonOp::EQ),
+                RispToken::Comparison(ComparisonOp::LT),
+                RispToken::Comparison(ComparisonOp::LTE),
+                RispToken::Comparison(ComparisonOp::GT),
+                RispToken::Comparison(ComparisonOp::GTE),
+                RispToken::RParen,
             ]
         );
     }
