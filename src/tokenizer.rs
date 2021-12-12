@@ -6,7 +6,8 @@ pub fn tokenize(line: &str) -> RispResult<Vec<RispToken>> {
     Tokenizer::new().tokenize(line)
 }
 
-pub struct Tokenizer {
+struct Tokenizer {
+    char_matcher: Regex,
     bool_matcher: Regex,
     int_matcher: Regex,
     float_matcher: Regex,
@@ -16,8 +17,9 @@ pub struct Tokenizer {
 
 // TODO quote tokens and reader macros for '
 impl Tokenizer {
-    pub fn new() -> Tokenizer {
+    fn new() -> Tokenizer {
         Tokenizer {
+            char_matcher: Regex::new(r#"\\[\x00-\xFF]"#).unwrap(),
             bool_matcher: Regex::new(r#"^(true|false)$"#).unwrap(),
             int_matcher: Regex::new(r#"^[-+]?[0-9][0-9_]*$"#).unwrap(),
             float_matcher: Regex::new(r#"^[-+]?[0-9]*([.][0-9]+|f|[.][0-9]+f)$"#).unwrap(),
@@ -41,6 +43,8 @@ impl Tokenizer {
 
     fn tokenize_element(&self, elem: &str) -> RispResult<RispToken> {
         match elem {
+            "nil" => Ok(RispToken::Nil),
+            c if self.char_matcher.is_match(c) => Ok(RispToken::Char(c.chars().nth(0).unwrap())),
             b if self.bool_matcher.is_match(b) => Ok(RispToken::Bool(bool::from_str(b)?)),
             int if self.int_matcher.is_match(int) => {
                 Ok(RispToken::Integer(i32::from_str(&int.replace("_", ""))?))
@@ -60,6 +64,7 @@ impl Tokenizer {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RispToken {
+    Nil,
     LParen,
     RParen,
     Symbol(String),
@@ -67,8 +72,7 @@ pub enum RispToken {
     Bool(bool),
     Float(f64),
     Integer(i32),
-    // TODO char and string
-    // TODO nil
+    Char(char),
 }
 
 #[cfg(test)]

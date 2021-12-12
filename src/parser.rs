@@ -19,12 +19,14 @@ fn parse_internal<'a>(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken]
 
 fn parse_atom(token: &RispToken) -> RispResult<RispExp> {
     match token {
+        RispToken::Char(c) => Ok(RispExp::Char(*c)),
         RispToken::Bool(b) => Ok(RispExp::Bool(*b)),
         RispToken::Integer(i) => Ok(RispExp::Integer(*i)),
         RispToken::Float(f) => Ok(RispExp::Float(*f)),
         RispToken::Symbol(str) => parse_symbol(str),
         RispToken::StringLiteral(str) => Ok(RispExp::String(str.to_owned())),
-        other => Err(RispError::UnexpectedToken(other.clone())),
+        RispToken::Nil => Ok(RispExp::Nil),
+        t @ (RispToken::LParen | RispToken::RParen) => Err(RispError::UnexpectedToken(t.clone())),
     }
 }
 
@@ -57,6 +59,7 @@ pub enum RispExp {
     Bool(bool),
     Integer(i32),
     Float(f64),
+    Char(char),
 
     String(String),
 
@@ -81,8 +84,11 @@ pub enum RispBuiltinFunction {
     Xor,
     Or,
     And,
+    // TODO def
     // TODO if
     // TODO pow
+
+    // Maybe add set!
 }
 
 impl RispFunction {
@@ -296,5 +302,5 @@ mod tests {
         );
     }
 
-    // TODO non lists (ints, floats, bools, symbols etc)
+    // TODO TEST non lists (ints, floats, bools, symbols etc)
 }
