@@ -31,6 +31,7 @@ impl Tokenizer {
     fn tokenize(&self, line: &str) -> RispResult<Vec<RispToken>> {
         line.replace("(", " ( ")
             .replace(")", " ) ")
+            // TODO support spaces in strings, don't split whitespace tokenize smarter by eating a stream
             .split_whitespace()
             .map(|x| x.to_string())
             .map(|s| match s.as_str() {
