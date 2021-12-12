@@ -15,5 +15,6 @@ pub const GT_SYM: &'static str = ">";
 pub const GTE_SYM: &'static str = ">=";
 
 pub const DEF_SYM: &'static str = "def";
+pub const IF_SYM: &'static str = "if";
 
 pub const NIL_SYM: &'static str = "nil";

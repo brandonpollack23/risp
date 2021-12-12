@@ -51,6 +51,22 @@ fn eval_list_as_func(mut forms: Vec<RispExp>, env: &mut RispEnv) -> RispResult<R
                 return Err(RispError::MalformedDefExpression);
             }
 
+            RispFunction::Builtin(RispBuiltinFunction::If) => {
+                if rest.len() != 3 {
+                    return Err(RispError::ArityMismatch(f.clone()));
+                }
+                if let RispExp::Bool(b) = rest.get(0).unwrap() {
+                    let true_branch = rest.get(1).unwrap();
+                    let else_branch = rest.get(2).unwrap();
+                    return Ok(if *b {
+                        true_branch.clone()
+                    } else {
+                        else_branch.clone()
+                    });
+                }
+                return Err(RispError::MalformedDefExpression);
+            }
+
             RispFunction::Function(f) => f(&rest),
         },
         _ => Err(RispError::FirstFormMustBeFunction(first.clone())),
@@ -798,5 +814,31 @@ mod tests {
             RispExp::Symbol("two".to_owned()),
         ]);
         assert_eq!(eval(exp, &mut env).unwrap(), RispExp::Integer(3));
+    }
+
+    #[test]
+    fn if_works() {
+        let mut env = RispEnv::default();
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::If)),
+            RispExp::Bool(true),
+            RispExp::String("true".to_owned()),
+            RispExp::String("false".to_owned()),
+        ]);
+        assert_eq!(
+            eval(exp, &mut env).unwrap(),
+            RispExp::String("true".to_owned())
+        );
+
+        let exp = RispExp::List(vec![
+            RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::If)),
+            RispExp::Bool(false),
+            RispExp::String("true".to_owned()),
+            RispExp::String("false".to_owned()),
+        ]);
+        assert_eq!(
+            eval(exp, &mut env).unwrap(),
+            RispExp::String("false".to_owned())
+        );
     }
 }

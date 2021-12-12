@@ -5,8 +5,8 @@ use std::ptr::addr_of;
 use crate::error::{RispError, RispResult};
 use crate::parser::RispFunction::Builtin;
 use crate::symbols_constants::{
-    AND_SYM, DEF_SYM, DIV_SYM, EQ_SYM, GTE_SYM, GT_SYM, LTE_SYM, LT_SYM, MINUS_SYM, MULTIPLY_SYM,
-    NOT_SYM, OR_SYM, PLUS_SYM, XOR_SYM,
+    AND_SYM, DEF_SYM, DIV_SYM, EQ_SYM, GTE_SYM, GT_SYM, IF_SYM, LTE_SYM, LT_SYM, MINUS_SYM,
+    MULTIPLY_SYM, NOT_SYM, OR_SYM, PLUS_SYM, XOR_SYM,
 };
 use crate::tokenizer::{ComparisonOp, RispToken};
 
@@ -59,6 +59,7 @@ fn parse_atom(token: &RispToken) -> RispResult<RispExp> {
         RispToken::Comparison(cmp) => Ok(cmp.into()),
 
         RispToken::Def => Ok(RispExp::Func(Builtin(RispBuiltinFunction::Def))),
+        RispToken::If => Ok(RispExp::Func(Builtin(RispBuiltinFunction::If))),
 
         t @ (RispToken::LParen | RispToken::RParen) => Err(RispError::UnexpectedToken(t.clone())),
     }
@@ -174,7 +175,7 @@ pub enum RispBuiltinFunction {
     EQ,
 
     Def,
-    // TODO if
+    If,
     // TODO functions/lambdas
 
     // Maybe add set!
@@ -209,6 +210,7 @@ impl RispFunction {
             RispFunction::Builtin(RispBuiltinFunction::EQ) => EQ_SYM.to_owned(),
 
             RispFunction::Builtin(RispBuiltinFunction::Def) => DEF_SYM.to_owned(),
+            RispFunction::Builtin(RispBuiltinFunction::If) => IF_SYM.to_owned(),
         }
     }
 }
@@ -240,6 +242,7 @@ impl From<&str> for RispFunction {
             GTE_SYM => RispFunction::Builtin(RispBuiltinFunction::GTE),
             EQ_SYM => RispFunction::Builtin(RispBuiltinFunction::EQ),
             DEF_SYM => RispFunction::Builtin(RispBuiltinFunction::Def),
+            IF_SYM => RispFunction::Builtin(RispBuiltinFunction::If),
             _ => panic!("This is not a valid built in!"),
         }
     }
@@ -431,6 +434,27 @@ mod tests {
                 RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Def)),
                 RispExp::Symbol("lukesfather".to_owned()),
                 RispExp::String("darthvader".to_owned())
+            ])
+        );
+    }
+
+    #[test]
+    fn if_works() {
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::If,
+                RispToken::Bool(true),
+                RispToken::StringLiteral("true".to_owned()),
+                RispToken::StringLiteral("false".to_owned()),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::If)),
+                RispExp::Bool(true),
+                RispExp::String("true".to_owned()),
+                RispExp::String("false".to_owned())
             ])
         );
     }
