@@ -5,15 +5,35 @@ use crate::error::{RispError, RispResult};
 use crate::tokenizer::RispToken;
 
 pub fn parse(tokens: &[RispToken]) -> RispResult<RispExp> {
-    parse_internal(tokens).map(|exp| exp.0)
+    let result = parse_internal(tokens)?;
+    if result.1.len() > 0 {
+        return Err(RispError::UnexpectedToken(result.1.get(0).unwrap().clone()));
+    }
+    Ok(result.0)
 }
 
+// TODO extra Rparens dont fail
 fn parse_internal<'a>(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
     let (token, rest) = tokens.split_first().unwrap();
     match &token {
         RispToken::LParen => read_seq(rest),
         RispToken::RParen => Err(RispError::UnexpectedToken(RispToken::RParen)),
         _ => Ok((parse_atom(token)?, rest)),
+    }
+}
+
+fn read_seq(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
+    let mut res: Vec<RispExp> = vec![];
+    let mut xs = tokens;
+    loop {
+        let (next_token, rest) = xs.split_first().ok_or(RispError::UnterminatedList)?;
+        if next_token == &RispToken::RParen {
+            return Ok((RispExp::List(res), rest));
+        }
+
+        let (exp, new_xs) = parse_internal(&xs)?;
+        res.push(exp);
+        xs = new_xs;
     }
 }
 
@@ -34,21 +54,6 @@ fn parse_symbol(str: &str) -> Result<RispExp, RispError> {
     match str {
         builtin if RispFunction::is_builtin(str) => Ok(RispExp::Func(builtin.into())),
         _ => Ok(RispExp::Symbol(str.to_owned())),
-    }
-}
-
-fn read_seq(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
-    let mut res: Vec<RispExp> = vec![];
-    let mut xs = tokens;
-    loop {
-        let (next_token, rest) = xs.split_first().ok_or(RispError::UnterminatedList)?;
-        if next_token == &RispToken::RParen {
-            return Ok((RispExp::List(res), rest));
-        }
-
-        let (exp, new_xs) = parse_internal(&xs)?;
-        res.push(exp);
-        xs = new_xs;
     }
 }
 

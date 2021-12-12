@@ -1,3 +1,7 @@
+//! Library for tokenizing, parsing, and evaluating my lil' lisp
+//! # TODO
+//! * Better errors that point to where the error is
+
 pub mod environment;
 pub mod error;
 pub mod eval;
