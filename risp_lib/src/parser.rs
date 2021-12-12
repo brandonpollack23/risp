@@ -86,6 +86,7 @@ pub enum RispBuiltinFunction {
     And,
     // TODO def
     // TODO if
+    // TODO functions/lambdas
     // TODO pow
 
     // Maybe add set!
