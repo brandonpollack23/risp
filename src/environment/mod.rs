@@ -44,12 +44,26 @@ impl RispEnv {
         )
     }
 
+    /// Boolean and all args.  The only false values are nil and false.
+    pub fn boolean_and(&self, args: &[RispExp]) -> RispResult<RispExp> {
+        Ok(RispExp::Bool(
+            args.iter()
+                .map(|x| match x {
+                    RispExp::Nil => false,
+                    RispExp::Bool(false) => false,
+                    _ => true,
+                })
+                .reduce(|x, y| x && y)
+                .unwrap_or(true),
+        ))
+    }
+
     fn check_for_illegal_arithmetic_input(args: &[RispExp]) -> RispResult<()> {
         if args
             .iter()
             .any(|arg| !(matches!(arg, RispExp::Integer(_) | RispExp::Float(_))))
         {
-            return Err(RispError::ArithmeticError(ILLEGAL_TYPE_FOR_ARITHMETIC_OP));
+            return Err(RispError::TypeError(ILLEGAL_TYPE_FOR_ARITHMETIC_OP));
         }
 
         Ok(())

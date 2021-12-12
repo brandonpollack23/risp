@@ -13,8 +13,8 @@ pub enum RispError {
     #[error("The token {0:?} was not expected here")]
     UnexpectedToken(RispToken),
 
-    #[error("Arithmetic error occured: {0}")]
-    ArithmeticError(&'static str),
+    #[error("Primitive type mismatch: {0}")]
+    TypeError(&'static str),
 
     #[error("Error parsing integer: {0}")]
     ParseIntError(#[from] ParseIntError),

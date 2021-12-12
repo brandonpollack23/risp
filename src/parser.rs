@@ -51,6 +51,7 @@ fn read_seq(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RispExp {
+    Nil,
     Symbol(String),
     Bool(bool),
     Integer(i32),
