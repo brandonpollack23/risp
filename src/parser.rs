@@ -73,6 +73,7 @@ pub enum RispBuiltinFunction {
     Minus,
     Multiply,
     Divide,
+    Not,
     Xor,
     Or,
     And,
@@ -83,7 +84,7 @@ pub enum RispBuiltinFunction {
 impl RispFunction {
     fn is_builtin(str: &str) -> bool {
         match str {
-            "+" | "-" | "*" | "/" | "xor" | "or" | "and" => true,
+            "+" | "-" | "*" | "/" | "xor" | "or" | "and" | "not" => true,
             _ => false,
         }
     }
@@ -106,6 +107,7 @@ impl From<&str> for RispFunction {
             "-" => RispFunction::Builtin(RispBuiltinFunction::Minus),
             "*" => RispFunction::Builtin(RispBuiltinFunction::Multiply),
             "/" => RispFunction::Builtin(RispBuiltinFunction::Divide),
+            "not" => RispFunction::Builtin(RispBuiltinFunction::Not),
             "xor" => RispFunction::Builtin(RispBuiltinFunction::Xor),
             "or" => RispFunction::Builtin(RispBuiltinFunction::Or),
             "and" => RispFunction::Builtin(RispBuiltinFunction::And),
@@ -122,6 +124,7 @@ impl Debug for RispFunction {
             RispFunction::Builtin(RispBuiltinFunction::Minus) => "-".to_string(),
             RispFunction::Builtin(RispBuiltinFunction::Multiply) => "*".to_string(),
             RispFunction::Builtin(RispBuiltinFunction::Divide) => "/".to_string(),
+            RispFunction::Builtin(RispBuiltinFunction::Not) => "not".to_string(),
             RispFunction::Builtin(RispBuiltinFunction::Xor) => "xor".to_string(),
             RispFunction::Builtin(RispBuiltinFunction::Or) => "or".to_string(),
             RispFunction::Builtin(RispBuiltinFunction::And) => "and".to_string(),
@@ -204,6 +207,21 @@ mod tests {
             .unwrap(),
             RispExp::List(vec![
                 RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Divide)),
+                RispExp::Integer(1),
+                RispExp::Integer(2)
+            ])
+        );
+        assert_eq!(
+            parse(&[
+                RispToken::LParen,
+                RispToken::String("not".to_string()),
+                RispToken::Integer(1),
+                RispToken::Integer(2),
+                RispToken::RParen
+            ])
+            .unwrap(),
+            RispExp::List(vec![
+                RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Not)),
                 RispExp::Integer(1),
                 RispExp::Integer(2)
             ])

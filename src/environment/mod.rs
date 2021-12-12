@@ -48,16 +48,37 @@ impl RispEnv {
     pub fn boolean_and(&self, args: &[RispExp]) -> RispResult<RispExp> {
         Ok(RispExp::Bool(
             args.iter()
-                .map(|x| match x {
-                    RispExp::Nil => false,
-                    RispExp::Bool(false) => false,
-                    _ => true,
-                })
+                .map(Self::truthiness)
                 .reduce(|x, y| x && y)
                 .unwrap_or(true),
         ))
     }
 
+    pub fn boolean_or(&self, args: &[RispExp]) -> RispResult<RispExp> {
+        Ok(RispExp::Bool(
+            args.iter()
+                .map(Self::truthiness)
+                .reduce(|x, y| x || y)
+                .unwrap_or(false),
+        ))
+    }
+
+    pub fn boolean_not(&self, args: &[RispExp]) -> RispResult<RispExp> {
+        if args.len() != 1 {
+            return Err(RispError::ArityMismatch(RispFunction::Builtin(
+                RispBuiltinFunction::Not,
+            )));
+        }
+        Ok(RispExp::Bool(!Self::truthiness(args.first().unwrap())))
+    }
+
+    fn truthiness(b: &RispExp) -> bool {
+        match b {
+            RispExp::Nil => false,
+            RispExp::Bool(false) => false,
+            _ => true,
+        }
+    }
     fn check_for_illegal_arithmetic_input(args: &[RispExp]) -> RispResult<()> {
         if args
             .iter()
