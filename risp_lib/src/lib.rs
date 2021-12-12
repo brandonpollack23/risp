@@ -9,3 +9,5 @@ pub mod parser;
 pub mod tokenizer;
 
 mod symbols_constants;
+
+// TODO make a prelude that includes simple stuff such as math.fact/pow/etc

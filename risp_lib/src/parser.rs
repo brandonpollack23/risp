@@ -160,6 +160,7 @@ pub enum RispBuiltinFunction {
     And,
 
     // Comparison
+    // TODO make these cascade (n-ary) like in clojure
     LT,
     LTE,
     GT,
@@ -168,7 +169,6 @@ pub enum RispBuiltinFunction {
     // TODO def
     // TODO if
     // TODO functions/lambdas
-    // TODO pow
 
     // Maybe add set!
 }
