@@ -131,3 +131,4 @@ Cargo.lock
 # Added by cargo
 
 /target
+.repl_history
