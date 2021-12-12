@@ -16,6 +16,7 @@ impl RispEnv {
         Ok(RispExp::Nil)
     }
 
+    // TODO NOW lift almost all of these out of env and into eval
     // TODO on math functions handle overflow/cases
     pub fn plus(&self, args: &[RispExp]) -> RispResult<RispExp> {
         number_list_apply!(args, Iterator::sum)
