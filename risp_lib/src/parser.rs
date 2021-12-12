@@ -12,7 +12,6 @@ pub fn parse(tokens: &[RispToken]) -> RispResult<RispExp> {
     Ok(result.0)
 }
 
-// TODO extra Rparens dont fail
 fn parse_internal<'a>(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
     if tokens.len() == 0 {
         return Ok((RispExp::Empty, &[]));
