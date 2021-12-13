@@ -7,8 +7,8 @@ use crate::error::{
 };
 use crate::parser::RispFunction::Builtin;
 use crate::symbols_constants::{
-    AND_SYM, DEF_SYM, DIV_SYM, EQ_SYM, GTE_SYM, GT_SYM, IF_SYM, LTE_SYM, LT_SYM, MINUS_SYM,
-    MULTIPLY_SYM, NOT_SYM, OR_SYM, PLUS_SYM, XOR_SYM,
+    AND_SYM, DEF_SYM, DIV_SYM, EQ_SYM, GTE_SYM, GT_SYM, IF_SYM, LAMBDA_SYM, LTE_SYM, LT_SYM,
+    MINUS_SYM, MULTIPLY_SYM, NOT_SYM, OR_SYM, PLUS_SYM, XOR_SYM,
 };
 use crate::tokenizer::{ComparisonOp, RispToken};
 
@@ -190,7 +190,7 @@ impl Display for RispExp {
     }
 }
 
-// TODO change from Box to Ref and propogate
+// TODO NOW change from Box to Ref and propogate
 #[derive(Clone, PartialEq)]
 pub enum RispFunction {
     Function {
@@ -228,10 +228,10 @@ pub enum RispBuiltinFunction {
 }
 
 impl RispFunction {
-    fn is_builtin(str: &str) -> bool {
+    pub fn is_builtin(str: &str) -> bool {
         match str {
             PLUS_SYM | MINUS_SYM | MULTIPLY_SYM | DIV_SYM | XOR_SYM | OR_SYM | AND_SYM
-            | NOT_SYM => true,
+            | NOT_SYM | DEF_SYM | LAMBDA_SYM => true,
             _ => false,
         }
     }

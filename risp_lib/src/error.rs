@@ -14,6 +14,9 @@ pub enum RispError {
     #[error("Unexpected end of input")]
     UnexpectedEndOfInput,
 
+    #[error("Cannot use built in names for def")]
+    InvalidName(String),
+
     #[error("The input {0} is not recognized as any valid token")]
     UnrecognizedToken(String),
     #[error("The token {0:?} was not expected here {1}")]

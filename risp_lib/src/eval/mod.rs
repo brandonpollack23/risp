@@ -25,7 +25,6 @@ fn eval_list_as_func(forms: &[RispExp], env: &mut RispEnv) -> RispResult<RispExp
         .map(|x| eval(x, env))
         .collect::<RispResult<Vec<RispExp>>>()?;
     let (first, rest) = evaluated.split_first().unwrap();
-    println!("{:?} calling with {:?}", first, rest);
     match first {
         RispExp::Func(f) => match f {
             RispFunction::Builtin(RispBuiltinFunction::Plus) => plus(&rest),
@@ -44,38 +43,12 @@ fn eval_list_as_func(forms: &[RispExp], env: &mut RispEnv) -> RispResult<RispExp
             RispFunction::Builtin(RispBuiltinFunction::GTE) => op_gte(&rest),
             RispFunction::Builtin(RispBuiltinFunction::EQ) => op_eq(&rest),
 
-            // TODO NOW clean
-            // TODO NOW make using builtins illegal
-            RispFunction::Builtin(RispBuiltinFunction::Def) => {
-                if rest.len() != 2 {
-                    return Err(RispError::ArityMismatch(f.clone()));
-                }
-                if let RispExp::Symbol(name) = rest.get(0).unwrap() {
-                    let expr = rest.get(1).unwrap();
-                    return env.def(name, expr);
-                }
-                return Err(RispError::MalformedDefExpression);
-            }
+            RispFunction::Builtin(RispBuiltinFunction::Def) => op_def(env, rest, f),
 
-            RispFunction::Builtin(RispBuiltinFunction::If) => {
-                if rest.len() != 3 {
-                    return Err(RispError::ArityMismatch(f.clone()));
-                }
-                if let RispExp::Bool(b) = rest.get(0).unwrap() {
-                    let true_branch = rest.get(1).unwrap();
-                    let else_branch = rest.get(2).unwrap();
-                    return Ok(if *b {
-                        true_branch.clone()
-                    } else {
-                        else_branch.clone()
-                    });
-                }
-                return Err(RispError::MalformedDefExpression);
-            }
+            RispFunction::Builtin(RispBuiltinFunction::If) => op_if(rest, f),
 
             f @ RispFunction::Function { params, body } => {
-                let new_env = &mut env_for_lambda(f, params, rest, env)?;
-                eval(body, new_env)
+                eval(body, &mut env_for_lambda(f, params, rest, env)?)
             }
         },
 
@@ -86,13 +59,42 @@ fn eval_list_as_func(forms: &[RispExp], env: &mut RispEnv) -> RispResult<RispExp
     }
 }
 
+fn op_if(rest: &[RispExp], f: &RispFunction) -> RispResult<RispExp> {
+    if rest.len() != 3 {
+        return Err(RispError::ArityMismatch(f.clone()));
+    }
+    if let RispExp::Bool(b) = rest.get(0).unwrap() {
+        let true_branch = rest.get(1).unwrap();
+        let else_branch = rest.get(2).unwrap();
+        return Ok(if *b {
+            true_branch.clone()
+        } else {
+            else_branch.clone()
+        });
+    }
+    return Err(RispError::MalformedDefExpression);
+}
+
+fn op_def(env: &mut RispEnv, rest: &[RispExp], f: &RispFunction) -> RispResult<RispExp> {
+    if rest.len() != 2 {
+        return Err(RispError::ArityMismatch(f.clone()));
+    }
+    match rest.get(0).unwrap() {
+        RispExp::Symbol(s) if RispFunction::is_builtin(s) => Err(RispError::InvalidName(s.clone())),
+        RispExp::Symbol(name) => {
+            let expr = rest.get(1).unwrap();
+            env.def(name, expr)
+        }
+        _ => Err(RispError::MalformedDefExpression),
+    }
+}
+
 fn env_for_lambda<'a, 'b>(
     f: &'a RispFunction,
     params: &'a RispExp,
     bindings: &'a [RispExp],
     parent: &'b mut RispEnv,
 ) -> RispResult<RispEnv<'b>> {
-    // TODO exp to list
     let p = expr_to_list(params)?;
     if p.len() != bindings.len() {
         return Err(RispError::ArityMismatch(f.clone()));
@@ -100,7 +102,6 @@ fn env_for_lambda<'a, 'b>(
 
     let mut res = RispEnv::with_outer(parent);
     for (param, binding) in p.iter().zip(bindings) {
-        // TODO exp to symbol
         res.def(expr_to_symbol(param)?, binding)?;
     }
     Ok(res)
@@ -1106,7 +1107,5 @@ mod tests {
             RispExp::Integer(37),
         ]);
         assert_eq!(eval(&invocation, &mut env).unwrap(), RispExp::Integer(38));
-
-        // TODO check that there is an outer in the env for the function.
     }
 }

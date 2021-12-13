@@ -1,6 +1,6 @@
 use crate::error::{RispError, RispResult};
 use crate::symbols_constants::{
-    DEF_SYM, EQ_SYM, FN_SYM, GTE_SYM, GT_SYM, IF_SYM, LTE_SYM, LT_SYM, NIL_SYM,
+    DEF_SYM, EQ_SYM, GTE_SYM, GT_SYM, IF_SYM, LAMBDA_SYM, LTE_SYM, LT_SYM, NIL_SYM,
 };
 use regex::Regex;
 use std::str::FromStr;
@@ -19,7 +19,7 @@ struct Tokenizer {
     comparison_op_matcher: Regex,
 }
 
-// TODO quote tokens and reader macros for ' (quote), !=
+// TODO NOW quote tokens and reader macros for ' (quote), !=
 impl Tokenizer {
     fn new() -> Tokenizer {
         Tokenizer {
@@ -36,7 +36,7 @@ impl Tokenizer {
     fn tokenize(&self, line: &str) -> RispResult<Vec<RispToken>> {
         line.replace("(", " ( ")
             .replace(")", " ) ")
-            // TODO support spaces in strings, don't split whitespace tokenize smarter by eating a stream
+            // TODO NOW support spaces in strings, don't split whitespace tokenize smarter by eating a stream
             .split_whitespace()
             .map(|x| x.to_string())
             .map(|s| match s.as_str() {
@@ -52,7 +52,7 @@ impl Tokenizer {
             NIL_SYM => Ok(RispToken::Nil),
             DEF_SYM => Ok(RispToken::Def),
             IF_SYM => Ok(RispToken::If),
-            FN_SYM => Ok(RispToken::Fn),
+            LAMBDA_SYM => Ok(RispToken::Fn),
 
             c if self.char_matcher.is_match(c) => Ok(RispToken::Char(c.chars().nth(0).unwrap())),
             b if self.bool_matcher.is_match(b) => Ok(RispToken::Bool(bool::from_str(b)?)),
