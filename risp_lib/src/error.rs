@@ -11,6 +11,9 @@ pub enum RispError {
     #[error("Generic error occured: {0}")]
     GenericError(String),
 
+    #[error("Unexpected end of input")]
+    UnexpectedEndOfInput,
+
     #[error("The input {0} is not recognized as any valid token")]
     UnrecognizedToken(String),
     #[error("The token {0:?} was not expected here {1}")]

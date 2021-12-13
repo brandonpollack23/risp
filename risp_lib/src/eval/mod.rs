@@ -15,7 +15,7 @@ pub fn eval(exp: &RispExp, env: &mut RispEnv) -> RispResult<RispExp> {
     }
 }
 
-fn eval_list_as_func(mut forms: &[RispExp], env: &mut RispEnv) -> RispResult<RispExp> {
+fn eval_list_as_func(forms: &[RispExp], env: &mut RispEnv) -> RispResult<RispExp> {
     if forms.len() < 1 {
         return Ok(RispExp::List(vec![]));
     }
@@ -25,6 +25,7 @@ fn eval_list_as_func(mut forms: &[RispExp], env: &mut RispEnv) -> RispResult<Ris
         .map(|x| eval(x, env))
         .collect::<RispResult<Vec<RispExp>>>()?;
     let (first, rest) = evaluated.split_first().unwrap();
+    println!("{:?} calling with {:?}", first, rest);
     match first {
         RispExp::Func(f) => match f {
             RispFunction::Builtin(RispBuiltinFunction::Plus) => plus(&rest),
@@ -74,9 +75,13 @@ fn eval_list_as_func(mut forms: &[RispExp], env: &mut RispEnv) -> RispResult<Ris
 
             f @ RispFunction::Function { params, body } => {
                 let new_env = &mut env_for_lambda(f, params, rest, env)?;
-                eval(body.as_ref(), new_env)
+                eval(body, new_env)
             }
         },
+
+        // Convert a literal into an executable.
+        RispExp::Lambda(f) => Ok(RispExp::Func(f.clone())),
+
         _ => Err(RispError::FirstFormMustBeFunction(first.clone())),
     }
 }
@@ -1081,7 +1086,7 @@ mod tests {
     #[test]
     fn fn_works() {
         let mut env = RispEnv::default();
-        let exp = RispExp::List(vec![RispExp::Func(RispFunction::Function {
+        let exp = RispExp::List(vec![RispExp::Lambda(RispFunction::Function {
             params: Box::new(RispExp::List(vec![RispExp::Symbol("x".to_string())])),
             body: Box::new(RispExp::List(vec![
                 RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),

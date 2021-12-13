@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
-use std::ptr::addr_of;
 
 use crate::error::{
     RispError, RispResult, EXPECTED_ARGS_LIST_FOR_FN, EXPECTED_FN_DEF_FOR_FN, TRAILING_TOKENS,
@@ -41,7 +40,6 @@ fn parse_internal<'a>(tokens: &[RispToken]) -> RispResult<(RispExp, &[RispToken]
 }
 
 fn read_fn(rest: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
-    // TODO NOW push in fn that has lists not just list
     let (args_list_begin, rest_args) = rest.split_first().ok_or(RispError::UnterminatedList)?;
     let (args, rest_fn) = match args_list_begin {
         RispToken::LParen => read_seq(rest_args)?,
@@ -61,7 +59,7 @@ fn read_fn(rest: &[RispToken]) -> RispResult<(RispExp, &[RispToken])> {
     };
 
     Ok((
-        RispExp::Func(RispFunction::Function {
+        RispExp::Lambda(RispFunction::Function {
             params: Box::new(args.clone()),
             body: Box::new(body.clone()),
         }),
@@ -127,7 +125,11 @@ pub enum RispExp {
 
     List(Vec<RispExp>),
 
+    // Function that shall be evaluated. For use when looking up symbols and evaluating
     Func(RispFunction),
+
+    // Function literal, for use when parsing and defining symbols.
+    Lambda(RispFunction),
 }
 
 impl From<&ComparisonOp> for RispExp {
@@ -181,6 +183,7 @@ impl Display for RispExp {
                     format!("({})", lstr)
                 }
                 RispExp::Func(f) => format!("f@{}", f),
+                RispExp::Lambda(f) => format!("lambda@{}", f),
                 RispExp::Empty => "".to_owned(),
             }
         )
@@ -237,7 +240,7 @@ impl RispFunction {
         match self {
             RispFunction::Function { params, body } => {
                 format!(
-                    "lambda \n\targs: {:?} \n\tbody: {:?}",
+                    "fn \n\targs: {:?} \n\tbody: {:?}",
                     params.as_ref(),
                     body.as_ref()
                 )
@@ -515,7 +518,7 @@ mod tests {
                 RispToken::RParen,
             ])
             .unwrap(),
-            RispExp::List(vec![RispExp::Func(RispFunction::Function {
+            RispExp::List(vec![RispExp::Lambda(RispFunction::Function {
                 params: Box::new(RispExp::List(vec![RispExp::Symbol("x".to_string())])),
                 body: Box::new(RispExp::List(vec![
                     RispExp::Func(RispFunction::Builtin(RispBuiltinFunction::Plus)),
