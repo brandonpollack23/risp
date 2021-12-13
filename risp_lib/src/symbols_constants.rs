@@ -1,3 +1,6 @@
+pub const LPAREN_SYM: &'static str = "(";
+pub const RPAREN_SYM: &'static str = ")";
+
 pub const PLUS_SYM: &'static str = "+";
 pub const MINUS_SYM: &'static str = "-";
 pub const MULTIPLY_SYM: &'static str = "*";

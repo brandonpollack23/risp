@@ -45,6 +45,8 @@ pub enum RispError {
 
     #[error("The previous LParen was unterminated")]
     UnterminatedList,
+    #[error("The previous Quote was unterminated")]
+    UnterminatedString,
 
     #[error("{0:?} is not an evaluable function")]
     FirstFormMustBeFunction(RispExp),

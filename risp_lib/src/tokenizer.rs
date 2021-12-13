@@ -1,6 +1,7 @@
 use crate::error::{RispError, RispResult};
 use crate::symbols_constants::{
-    DEF_SYM, EQ_SYM, GTE_SYM, GT_SYM, IF_SYM, LAMBDA_SYM, LTE_SYM, LT_SYM, NIL_SYM,
+    DEF_SYM, EQ_SYM, GTE_SYM, GT_SYM, IF_SYM, LAMBDA_SYM, LPAREN_SYM, LTE_SYM, LT_SYM, NIL_SYM,
+    RPAREN_SYM,
 };
 use regex::Regex;
 use std::str::FromStr;
@@ -34,21 +35,55 @@ impl Tokenizer {
     }
 
     fn tokenize(&self, line: &str) -> RispResult<Vec<RispToken>> {
-        line.replace("(", " ( ")
-            .replace(")", " ) ")
-            // TODO NOW support spaces in strings, don't split whitespace tokenize smarter by eating a stream
-            .split_whitespace()
-            .map(|x| x.to_string())
-            .map(|s| match s.as_str() {
-                "(" => Ok(RispToken::LParen),
-                ")" => Ok(RispToken::RParen),
-                token => self.tokenize_element(token),
-            })
-            .collect()
+        Self::combine_quote_pairs(
+            line.replace("(", " ( ")
+                .replace(")", " ) ")
+                .replace("\"", " \" ")
+                .split_whitespace()
+                .map(|x| x.to_owned())
+                .collect::<Vec<String>>(),
+        )?
+        .iter()
+        .map(|s| self.tokenize_element(&s))
+        .collect()
+    }
+
+    // TODO NOW allow escape chars for quotes
+    fn combine_quote_pairs(inputs: Vec<String>) -> RispResult<Vec<String>> {
+        let mut result: Vec<String> = Vec::new();
+        let mut quoted_string_builder: String = String::new();
+        let mut quoting = false;
+        for input in inputs.iter() {
+            match (quoting, input.as_str()) {
+                (false, s) => {
+                    if s == "\"" {
+                        quoting = true;
+                        quoted_string_builder = s.to_string();
+                    } else {
+                        result.push(s.to_owned());
+                    }
+                }
+                (true, s) => {
+                    if s == "\"" {
+                        let start = quoted_string_builder.len() - 1;
+                        quoted_string_builder.replace_range(start..start + 1, "\"");
+                        quoting = false;
+                        result.push(quoted_string_builder.clone())
+                    } else {
+                        quoted_string_builder.push_str(s);
+                        quoted_string_builder.push(' ');
+                    }
+                }
+            }
+        }
+
+        Ok(result)
     }
 
     fn tokenize_element(&self, elem: &str) -> RispResult<RispToken> {
         match elem {
+            LPAREN_SYM => Ok(RispToken::LParen),
+            RPAREN_SYM => Ok(RispToken::RParen),
             NIL_SYM => Ok(RispToken::Nil),
             DEF_SYM => Ok(RispToken::Def),
             IF_SYM => Ok(RispToken::If),
@@ -239,6 +274,20 @@ mod tests {
                 RispToken::Comparison(ComparisonOp::LTE),
                 RispToken::Comparison(ComparisonOp::GT),
                 RispToken::Comparison(ComparisonOp::GTE),
+                RispToken::RParen,
+            ]
+        );
+    }
+
+    #[test]
+    fn strings_with_spaces_parse() {
+        assert_eq!(
+            tokenize(r#"(def test "blarg is blarg")"#).unwrap(),
+            vec![
+                RispToken::LParen,
+                RispToken::Def,
+                RispToken::Symbol("test".to_owned()),
+                RispToken::StringLiteral("blarg is blarg".to_owned()),
                 RispToken::RParen,
             ]
         );
